@@ -1,4 +1,11 @@
+use std::f64;
 
+struct CoreStat {
+    id: u64,
+    usage_percentage: f64,
+    temperature: f64,
+    usage: UsageStat,
+}
 struct UsageStat {
     user: u64,
     nice: u64,
