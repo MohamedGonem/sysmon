@@ -1,3 +1,5 @@
+use crate::utils::color_bat;
+
 struct BatteryStat {
     percentage: u64,
     status: String,
@@ -20,4 +22,10 @@ fn battery_status() -> BatteryStat {
         status: full_status,
         short_status: shortened_status,
     }
+}
+pub fn print_battery(arg_env: String) {
+    let bat = battery_status();
+    let tmux = arg_env == "tmux";
+    let bat = color_bat(bat.percentage, tmux, bat.status, bat.short_status);
+    println!("{} {} {}", bat[0], bat[1], bat[2]);
 }
