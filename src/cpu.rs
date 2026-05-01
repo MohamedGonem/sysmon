@@ -267,3 +267,19 @@ pub fn print_cpu_usage(env: String) {
     println!("CPU {}", color(usage, tmux));
 }
 
+pub fn print_core_usage(env: String) {
+    let tmux = env == "tmux";
+    let logical_cores = get_logical_cores();
+    let targets: Vec<String> = (0..logical_cores).map(|i| format!("cpu{}", i)).collect();
+    let target_refs: Vec<&str> = targets.iter().map(|s| s.as_str()).collect();
+    let usages = calc_usages(&target_refs);
+
+    for (i, usage) in usages.iter().enumerate() {
+        println!(
+            "{}[{}] {}",
+            color_head("Core", tmux),
+            color_based_on_percentage(i.to_string(), usage.to_owned(), tmux, false),
+            color(usage.to_owned(), tmux)
+        );
+    }
+}
