@@ -10,9 +10,13 @@ use clap::{Parser, ValueEnum};
 #[command(version = "0.1")]
 #[command(about = "Personal system monitor tool", long_about = None)]
 struct Cli {
-    ///Show CPU usage
-    #[arg(long = "cpu", short = 'c')]
+    ///Show CPU usage (or full details with -d flag)
+    #[arg(long = "cpu", short = 'C')]
     cpu: bool,
+
+    ///Show Core usage (or full details with -d flag)
+    #[arg(long = "cores", short = 'c')]
+    core: bool,
 
     ///Show memory stats
     #[arg(long = "mem", short = 'm')]
@@ -26,7 +30,7 @@ struct Cli {
     #[arg(long = "env", short = 'e', default_value_t = Env::Normal)]
     env: Env,
 
-    ///Output detailed informatiob
+    ///Output detailed information
     #[arg(long = "detailed", short = 'd', default_value_t = false)]
     detailed: bool,
 }
@@ -78,7 +82,17 @@ fn main() {
     };
 
     if cli.cpu {
-        cpu::print_cpu(env.clone());
+        match cli.detailed {
+            false => cpu::print_cpu_usage(env.clone()),
+            true => cpu::print_cpu_stats(env.clone()),
+        }
+    }
+
+    if cli.core {
+        match cli.detailed {
+            false => cpu::print_core_usage(env.clone()),
+            true => cpu::print_cores_stats(env.clone()),
+        }
     }
 
     if cli.mem.is_some() {
@@ -89,7 +103,7 @@ fn main() {
         bat::print_battery(env.clone());
     }
 
-    if !cli.cpu && cli.mem.is_none() && !cli.bat {
+    if !cli.cpu && !cli.core && cli.mem.is_none() && !cli.bat {
         println!("No option specified. Use --help for usage.")
     }
 }
