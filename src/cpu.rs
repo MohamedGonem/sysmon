@@ -135,3 +135,7 @@ fn get_physical_cores() -> u64 {
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(1)
 }
+fn get_logical_cores() -> u64 {
+    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    info.lines().filter(|l| l.starts_with("processor")).count() as u64
+}
