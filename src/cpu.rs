@@ -87,6 +87,23 @@ fn calc_usage(target: &str) -> f64 {
 fn calc_usages(target_refs: &[&str]) -> Vec<f64> {
     target_refs.iter().map(|u| calc_usage(*u)).collect()
 }
+fn get_cpu_temperature() -> Option<f64> {
+    for i in 0..10 {
+        let name_path = format!("/sys/class/hwmon/hwmon{}/name", i);
+        let name = std::fs::read_to_string(&name_path).ok()?;
+        let name = name.trim();
+
+        if name == "coretemp" || name == "k10temp" {
+            let temp_path = format!("/sys/class/hwmon/hwmon{}/temp1_input", i);
+            let raw = std::fs::read_to_string(&temp_path).ok()?;
+            let millidegrees: f64 = raw.trim().parse().ok()?;
+            return Some(millidegrees / 1000.0);
+        }
+    }
+    let raw = std::fs::read_to_string("/sys/class/thermal/thermal_zone0/temp").ok()?;
+    let millidegrees: f64 = raw.trim().parse().ok()?;
+    Some(millidegrees / 1000.0)
+}
 fn get_cpu_model_name() -> String {
     let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
     info.lines()
