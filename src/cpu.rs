@@ -244,3 +244,20 @@ fn cpu_full_stats() -> CPUStat {
         core_stats: core_full_stats(),
     }
 }
+
+pub fn print_cores_stats(env: String) {
+    let tmux = env == "tmux";
+    let cores = core_full_stats();
+    let len = cores.len();
+    println!("{}\n{}", color_head("[Cores]", tmux), "-".repeat(35));
+    for (i, core) in cores.into_iter().enumerate() {
+        let colored_core = color_corestat(core, tmux);
+        for stat in colored_core {
+            println!("{}", stat);
+        }
+        if i < len - 1 {
+            println!("{}", "-".repeat(25));
+        }
+    }
+}
+
