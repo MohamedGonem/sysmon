@@ -54,6 +54,36 @@ fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
     };
     Some(stats)
 }
+fn calc_usage(target: &str) -> f64 {
+    let get_total = |target: &str| -> (u64, u64) {
+        let stats = match get_cpu_or_core_stats(target) {
+            Some(s) => s,
+            None => return (0, 0),
+        };
+        let total = stats.user
+            + stats.nice
+            + stats.system
+            + stats.idle
+            + stats.iowait
+            + stats.irq
+            + stats.softirq
+            + stats.guest
+            + stats.guest_nice
+            + stats.steal;
+        let idle_total = stats.idle + stats.iowait;
+        (total, idle_total)
+    };
+    let (total1, idle_total1) = get_total(target);
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    let (total2, idle_total2) = get_total(target);
+
+    let total = total2 - total1;
+    let idle_total = idle_total2 - idle_total1;
+
+    let usage: f64 = 100.0 * (1.0 - idle_total as f64 / total as f64);
+
+    usage
+}
 fn get_cpu_model_name() -> String {
     let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
     info.lines()
