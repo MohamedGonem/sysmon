@@ -53,3 +53,11 @@ pub fn color_based_on_percentage(
     }
 }
 
+
+pub fn color_head(text: &str, tmux: bool) -> String {
+    if tmux {
+        format!("#[fg=brightwhite]{}", text)
+    } else {
+        text.white().bold().to_string()
+    }
+}
