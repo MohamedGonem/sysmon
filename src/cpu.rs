@@ -54,3 +54,11 @@ fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
     };
     Some(stats)
 }
+fn get_cpu_model_name() -> String {
+    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    info.lines()
+        .find(|l| l.starts_with("model name"))
+        .and_then(|l| l.split(':').nth(1))
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "Unknown".to_string())
+}
