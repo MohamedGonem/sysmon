@@ -127,3 +127,11 @@ fn get_cpu_model_name() -> String {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "Unknown".to_string())
 }
+fn get_physical_cores() -> u64 {
+    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    info.lines()
+        .find(|l| l.starts_with("cpu cores"))
+        .and_then(|l| l.split(':').nth(1))
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(1)
+}
