@@ -139,3 +139,10 @@ fn get_logical_cores() -> u64 {
     let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
     info.lines().filter(|l| l.starts_with("processor")).count() as u64
 }
+fn get_frequency(path: &str) -> f64 {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|s| s.trim().parse::<f64>().ok())
+        .map(|khz| khz / 1000.0)
+        .unwrap_or(0.0)
+}
