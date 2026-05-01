@@ -84,6 +84,9 @@ fn calc_usage(target: &str) -> f64 {
 
     usage
 }
+fn calc_usages(target_refs: &[&str]) -> Vec<f64> {
+    target_refs.iter().map(|u| calc_usage(*u)).collect()
+}
 fn get_cpu_model_name() -> String {
     let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
     info.lines()
