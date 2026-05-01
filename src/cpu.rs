@@ -261,6 +261,12 @@ pub fn print_cores_stats(env: String) {
     }
 }
 
+pub fn print_cpu_stats(env: String) {
+    let tmux = env == "tmux";
+    let cpu = cpu_full_stats();
+    todo!();
+}
+
 pub fn print_cpu_usage(env: String) {
     let tmux = env == "tmux";
     let usage = calc_usage("cpu");
