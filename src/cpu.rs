@@ -193,3 +193,29 @@ fn get_frequency(path: &str) -> f64 {
         .unwrap_or(0.0)
 }
 
+fn core_full_stats() -> Vec<CoreStat> {
+    let logical_cores = get_logical_cores();
+    (0..logical_cores)
+        .map(|i| {
+            let target = format!("cpu{}", i);
+            CoreStat {
+                id: i,
+                usage_percentage: calc_usage(&target),
+                temperature: get_core_temperature(i).unwrap_or(0.0),
+                usage: get_cpu_or_core_stats(&target).unwrap_or(UsageStat {
+                    user: 0,
+                    nice: 0,
+                    system: 0,
+                    idle: 0,
+                    iowait: 0,
+                    irq: 0,
+                    softirq: 0,
+                    steal: 0,
+                    guest: 0,
+                    guest_nice: 0,
+                }),
+            }
+        })
+        .collect()
+}
+
