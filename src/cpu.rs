@@ -7,6 +7,24 @@ struct CoreStat {
     temperature: f64,
     usage: UsageStat,
 }
+
+fn color_corestat(target: CoreStat, tmux: bool) -> Vec<String> {
+    let core_id = format!(
+        "{}[{}]",
+        color_head("\tCore", tmux),
+        color_based_on_percentage(target.id.to_string(), target.usage_percentage, tmux, false)
+    );
+    let core_temperature = format!(
+        "\t\t{} {:0.1}c",
+        color_head("Temperature", tmux),
+        target.temperature
+    );
+    let core_usage = color_usagestat(target.usage, tmux);
+    let core_stat = vec![core_id, core_temperature, format!("\t\t{}", "-".repeat(10))];
+
+    [core_stat, core_usage].concat()
+}
+
 struct UsageStat {
     user: u64,
     nice: u64,
