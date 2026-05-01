@@ -18,3 +18,15 @@ struct UsageStat {
     guest: u64,
     guest_nice: u64,
 }
+struct CPUStat {
+    model_name: String,
+    physical_cores_count: u64,
+    logical_cores_count: u64,
+    current_frequency: f64,
+    min_frequency: f64,
+    max_frequency: f64,
+    temperature: f64,
+    usage_percentage: f64,
+    core_stats: Vec<CoreStat>,
+    usage: UsageStat,
+}
