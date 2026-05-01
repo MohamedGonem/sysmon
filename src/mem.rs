@@ -56,3 +56,82 @@ fn mem_usage() -> (MemStat, MemStat) {
         },
     )
 }
+
+pub fn print_mem(env: String, mode: String, detailed: bool) {
+    let (mem_stat, swap_stat) = mem_usage();
+    let tmux = env == "tmux";
+    let mem_head = color_head("Mem", tmux);
+    let mem_percentage = color(mem_stat.percentage, tmux);
+    let mem_free = color_based_on_percentage(
+        mem_stat.free_mb.to_string(),
+        mem_stat.percentage,
+        tmux,
+        true,
+    );
+    let mem_used = color_based_on_percentage(
+        mem_stat.used_mb.to_string(),
+        mem_stat.percentage,
+        tmux,
+        false,
+    );
+    let mem_total = color_head(mem_stat.total_mb.to_string().as_str(), tmux);
+    let swap_head = color_head("Swap", tmux);
+    let swap_percentage = color(swap_stat.percentage, tmux);
+    let swap_free = color_based_on_percentage(
+        mem_stat.free_mb.to_string(),
+        swap_stat.percentage,
+        tmux,
+        true,
+    );
+    let swap_used = color_based_on_percentage(
+        swap_stat.used_mb.to_string(),
+        swap_stat.percentage,
+        tmux,
+        false,
+    );
+    let swap_total = color_head(swap_stat.total_mb.to_string().as_str(), tmux);
+
+    match mode.as_str() {
+        "memory" => {
+            if !detailed {
+                println!("{} {}", mem_head, mem_percentage);
+            } else {
+                println!("{}:", mem_head);
+                println!("\tTotal Memory:\t\t{}mb", mem_total);
+                println!("\tTotal Used:\t\t{}mb", mem_used);
+                println!("\tTotal Available:\t\t{}mb", mem_free);
+                println!("\tUsage:\t\t{}", mem_percentage);
+            }
+        }
+        "swap" => {
+            if !detailed {
+                println!("{} {}", swap_head, swap_percentage);
+            } else {
+                println!("{}:", swap_head);
+                println!("\tTotal Memory:\t\t{}mb", swap_total);
+                println!("\tTotal Used:\t\t{}mb", swap_used);
+                println!("\tTotal Available:\t\t{}mb", swap_free);
+                println!("\tUsage:\t\t{}", swap_percentage);
+            }
+        }
+        "all" => {
+            if !detailed {
+                println!("{} {}", mem_head, mem_percentage);
+                println!("{} {}", swap_head, swap_percentage);
+            } else {
+                println!("{}:", mem_head);
+                println!("\tTotal Memory:\t\t{}mb", mem_total);
+                println!("\tTotal Used:\t\t{}mb", mem_used);
+                println!("\tTotal Available:\t\t{}mb", mem_free);
+                println!("\tUsage:\t\t{}", mem_percentage);
+                println!("");
+                println!("{}:", swap_head);
+                println!("\tTotal Memory:\t\t{}mb", swap_total);
+                println!("\tTotal Used:\t\t{}mb", swap_used);
+                println!("\tTotal Available:\t\t{}mb", swap_free);
+                println!("\tUsage:\t\t{}", swap_percentage);
+            }
+        }
+        _ => {}
+    }
+}
