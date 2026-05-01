@@ -22,3 +22,34 @@ pub fn color(percentage: f64, tmux: bool) -> String {
         }
     }
 }
+
+pub fn color_based_on_percentage(
+    text: String,
+    percentage: f64,
+    tmux: bool,
+    reversed: bool,
+) -> String {
+    let true_percentage: f64 = if reversed { -percentage } else { percentage };
+    if tmux {
+        match true_percentage as i64 {
+            0..=10 | -100..=-91 => format!("#[fg=brightgreen]{:0.1}%", text),
+            11..=30 | -90..=-76 => format!("#[fg=green]{}", text),
+            31..=50 | -75..=-51 => format!("#[fg=yellow]{}", text),
+            51..=75 | -50..=-31 => format!("#[fg=brightyellow]{}", text),
+            76..=90 | -30..=-11 => format!("#[fg=red]{}", text),
+            91..=100 | -10..=-1 => format!("#[fg=brightred]{}", text),
+            _ => "".to_string(),
+        }
+    } else {
+        match true_percentage as i64 {
+            0..=10 | -100..=-91 => text.green().bold().to_string(),
+            11..=30 | -90..=-76 => text.green().to_string(),
+            31..=50 | -75..=-51 => text.yellow().to_string(),
+            51..=75 | -50..=-31 => text.yellow().bold().to_string(),
+            76..=90 | -30..=-11 => text.red().to_string(),
+            91..=100 | -10..=-1 => text.red().to_string(),
+            _ => "".to_string(),
+        }
+    }
+}
+
