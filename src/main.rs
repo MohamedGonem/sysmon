@@ -26,7 +26,7 @@ struct Cli {
     #[arg(long = "bat", short = 'b')]
     bat: bool,
 
-    ///Output format for your terminal enviroment
+    ///Output format for your terminal environment
     #[arg(long = "env", short = 'e', default_value_t = Env::Normal)]
     env: Env,
 

@@ -27,7 +27,7 @@ Options:
   -c, --cores      Show Core usage (or full details with -d flag)
   -m, --mem <MEM>  Show memory stats [possible values: memory, swap, all]
   -b, --bat        Show battery level and charging status
-  -e, --env <ENV>  Output format for your terminal enviroment [default: normal] [possible values: tmux, normal]
+  -e, --env <ENV>  Output format for your terminal environment [default: normal] [possible values: tmux, normal]
   -d, --detailed   Output detailed information
   -h, --help       Print help
   -V, --version    Print version
