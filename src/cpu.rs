@@ -261,3 +261,9 @@ pub fn print_cores_stats(env: String) {
     }
 }
 
+pub fn print_cpu_usage(env: String) {
+    let tmux = env == "tmux";
+    let usage = calc_usage("cpu");
+    println!("CPU {}", color(usage, tmux));
+}
+
