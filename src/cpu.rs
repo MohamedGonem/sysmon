@@ -219,3 +219,28 @@ fn core_full_stats() -> Vec<CoreStat> {
         .collect()
 }
 
+fn cpu_full_stats() -> CPUStat {
+    CPUStat {
+        model_name: get_cpu_model_name(),
+        physical_cores_count: get_physical_cores(),
+        logical_cores_count: get_logical_cores(),
+        current_frequency: get_frequency("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq"),
+        min_frequency: get_frequency("/sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq"),
+        max_frequency: get_frequency("/sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq"),
+        temperature: get_cpu_temperature().unwrap_or(0.0),
+        usage_percentage: calc_usage("cpu"),
+        usage: get_cpu_or_core_stats("cpu").unwrap_or(UsageStat {
+            user: 0,
+            nice: 0,
+            system: 0,
+            idle: 0,
+            iowait: 0,
+            irq: 0,
+            softirq: 0,
+            steal: 0,
+            guest: 0,
+            guest_nice: 0,
+        }),
+        core_stats: core_full_stats(),
+    }
+}
