@@ -1,12 +1,20 @@
 # sysmon
 
-A Linux system monitor written in Rust. 
+A Linux system monitor written in Rust - inspired by btop, built from scratch as a learning project. Designed for the terminal and tmux.
 
 ## Features
 - CPU usage, temperature, frequency
 - cores usages
 - battery percentage and charging status
 - memory (and swap) usage percentage and details
+
+## Status
+
+Early stage. Known Issues:
+- Crashes if no battery is present (desktop system)
+- Craches if no swap partition exists (divide by zero)
+
+  Contributions welcome - see the [issue tab](https://github.com/MohamedGonem/sysmon/issues) for `good first issue` tasks.
 
 ## Installation
 
@@ -24,6 +32,11 @@ cd sysmon
 cargo build --release
 sudo mv target/release/sysmon /usr/local/bin/
 ```
+
+## Dependencies
+
+- [`clap`](https://github.com/clap-rs/clap) - CLI argument parsing
+- [`colored`](https://github.com/colored-rs/colored) - terminal colors
 
 ## Usage
 ---------
@@ -109,6 +122,7 @@ BATTERY
 - [x] status (Charging/Discharging/Full)
 - [ ] capacity percent
 - [ ] energy now
+- [x] energy now percentage
 - [ ] energy full
 - [ ] energy full design
 - [ ] power draw (watts)
@@ -175,6 +189,10 @@ TEMPERATURES & FANS
 - [ ] disk temperatures
 - [ ] fan speeds
 - [ ] fan labels
+
+## Contributing
+
+see [CONTRIBUTING.md](.github/CONTRIBUTING.md) for how to report bugs, suggest features, or pick up a `todo()` function.
 
 ## License
 MIT
