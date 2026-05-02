@@ -1,22 +1,29 @@
 # sysmon
 
-A Linux system monitor written in Rust.
+A Linux system monitor written in Rust. 
 
 ## Features
 - CPU usage, temperature, frequency
+- cores usages
+- battery percentage and charging status
+- memory (and swap) usage percentage and details
 
 ## Installation
 
 ### From binary (Linux x86_64)
 download from releases page
+```
 chmod +x sysmon
 sudo mv sysmon /usr/local/bin/
+```
 
 ### From source
+```
 git clone https://github.com/MohamedGonem/sysmon
 cd sysmon
 cargo build --release
 sudo mv target/release/sysmon /usr/local/bin/
+```
 
 ## Usage
 ---------
@@ -32,6 +39,13 @@ Options:
   -h, --help       Print help
   -V, --version    Print version
 ```
+
+## Tool in Action
+<img width="344.8" height="234.8" alt="showcasing cores and battry" src="https://github.com/user-attachments/assets/c55ed619-d9b3-40aa-97c5-81774f28e510" />
+
+<img width="344.8" height="234.8" alt="-dm all" src="https://github.com/user-attachments/assets/1ea4d953-fdda-436a-85d2-3e597dfe5fd8" />
+<img width="344.8" height="234.8" alt="-m swap and -m memory" src="https://github.com/user-attachments/assets/838f79ab-d172-44f8-8997-13458affdeae" />
+
 
 ## Roadmap
 CPU
