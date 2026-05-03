@@ -316,7 +316,10 @@ pub fn print_cores_stats(env: String) {
 pub fn print_cpu_stats(env: String) {
     let tmux = env == "tmux";
     let cpu = cpu_full_stats();
-    todo!();
+    let cpu = color_cpustat(cpu, tmux);
+    for stat in cpu.into_iter() {
+        println!("{stat}");
+    }
 }
 
 pub fn print_cpu_usage(env: String) {
