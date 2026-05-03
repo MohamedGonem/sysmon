@@ -8,7 +8,7 @@ struct CoreStat {
     usage: UsageStat,
 }
 
-fn color_corestat(target: CoreStat, tmux: bool) -> Vec<String> {
+fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String> {
     let core_id = format!(
         "{}[{}]",
         color_head("\tCore", tmux),
@@ -20,9 +20,18 @@ fn color_corestat(target: CoreStat, tmux: bool) -> Vec<String> {
         target.temperature
     );
     let core_usage = color_usagestat(target.usage, tmux);
-    let core_stat = vec![core_id, core_temperature, format!("\t\t{}", "-".repeat(10))];
-
-    [core_stat, core_usage].concat()
+    if !newline {
+        let core_stat = vec![core_id, core_temperature, format!("\t\t{}", "-".repeat(10))];
+        [core_stat, core_usage].concat()
+    } else {
+        let core_stat = vec![
+            format!("{}", "-".repeat(10)),
+            core_id,
+            core_temperature,
+            format!("\t\t{}", "-".repeat(10)),
+        ];
+        [core_stat, core_usage].concat()
+    }
 }
 
 struct UsageStat {
@@ -102,13 +111,16 @@ fn color_cpustat(target: CPUStat, tmux: bool) -> Vec<String> {
     );
     let usage_percentage = format!(
         "{} [{}]",
-        color_head("Usage%", tmux),
+        color_head("Usage", tmux),
         color(target.usage_percentage, tmux)
     );
     let usage = color_usagestat(target.usage, tmux);
 
-    // need to be implemented
-    // let core_stats
+    let core_stats: Vec<_> = target
+        .core_stats
+        .into_iter()
+        .flat_map(|c| color_corestat(c, tmux, true))
+        .collect();
 
     let result = vec![
         model_name,
@@ -120,7 +132,7 @@ fn color_cpustat(target: CPUStat, tmux: bool) -> Vec<String> {
         temperature,
         usage_percentage,
     ];
-    [result, usage].concat()
+    [result, usage, core_stats].concat()
 }
 fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
     let full_stats = std::fs::read_to_string("/proc/stat").ok()?;
@@ -178,7 +190,7 @@ fn calc_usage(target: &str) -> f64 {
     usage
 }
 fn calc_usages(target_refs: &[&str]) -> Vec<f64> {
-    target_refs.iter().map(|u| calc_usage(*u)).collect()
+    target_refs.iter().map(|u| calc_usage(u)).collect()
 }
 
 fn get_cpu_temperature() -> Option<f64> {
@@ -303,7 +315,7 @@ pub fn print_cores_stats(env: String) {
     let len = cores.len();
     println!("{}\n{}", color_head("[Cores]", tmux), "-".repeat(35));
     for (i, core) in cores.into_iter().enumerate() {
-        let colored_core = color_corestat(core, tmux);
+        let colored_core = color_corestat(core, tmux, false);
         for stat in colored_core {
             println!("{}", stat);
         }
