@@ -69,7 +69,58 @@ struct CPUStat {
     usage: UsageStat,
 }
 fn color_cpustat(target: CPUStat, tmux: bool) -> Vec<String> {
-    todo!();
+    let model_name = format!("{} {}", color_head("Model", tmux), target.model_name);
+    let physical_cores_count = format!(
+        "{} [{}]",
+        color_head("Phusical Cores", tmux),
+        target.physical_cores_count
+    );
+    let logical_cores_count = format!(
+        "{} [{}]",
+        color_head("Logical Cores", tmux),
+        target.logical_cores_count
+    );
+    let current_frequency = format!(
+        "{} [{:0.1}MHZ]",
+        color_head("Frequency", tmux),
+        target.current_frequency
+    );
+    let min_frequency = format!(
+        "{} [{:0.1}MHZ]",
+        color_head("Min Frequency", tmux),
+        target.min_frequency
+    );
+    let max_frequency = format!(
+        "{} [{:0.1}MHZ]",
+        color_head("Max Frequency", tmux),
+        target.max_frequency
+    );
+    let temperature = format!(
+        "{} [{:0.2}c]",
+        color_head("Temperature", tmux),
+        target.temperature
+    );
+    let usage_percentage = format!(
+        "{} [{}]",
+        color_head("Usage%", tmux),
+        color(target.usage_percentage, tmux)
+    );
+    let usage = color_usagestat(target.usage, tmux);
+
+    // need to be implemented
+    // let core_stats
+
+    let result = vec![
+        model_name,
+        physical_cores_count,
+        logical_cores_count,
+        current_frequency,
+        min_frequency,
+        max_frequency,
+        temperature,
+        usage_percentage,
+    ];
+    [result, usage].concat()
 }
 fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
     let full_stats = std::fs::read_to_string("/proc/stat").ok()?;
@@ -172,6 +223,7 @@ fn get_cpu_model_name() -> String {
         .map(|s| s.trim().to_string())
         .unwrap_or_else(|| "Unknown".to_string())
 }
+
 fn get_physical_cores() -> u64 {
     let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
     info.lines()
