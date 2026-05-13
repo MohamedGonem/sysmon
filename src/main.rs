@@ -1,6 +1,7 @@
 mod bat;
 mod cpu;
 mod mem;
+mod usagestat;
 mod utils;
 
 use clap::{Parser, ValueEnum};
