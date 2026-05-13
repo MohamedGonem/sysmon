@@ -1,6 +1,7 @@
 mod bat;
 mod corestat;
 mod cpu;
+mod cpustat;
 mod mem;
 mod usagestat;
 mod utils;
