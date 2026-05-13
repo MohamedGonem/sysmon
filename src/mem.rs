@@ -124,7 +124,7 @@ pub fn print_mem(env: String, mode: String, detailed: bool) {
                 println!("\tTotal Used:\t\t{}mb", mem_used);
                 println!("\tTotal Available:\t\t{}mb", mem_free);
                 println!("\tUsage:\t\t{}", mem_percentage);
-                println!("");
+                println!();
                 println!("{}:", swap_head);
                 println!("\tTotal Memory:\t\t{}mb", swap_total);
                 println!("\tTotal Used:\t\t{}mb", swap_used);
