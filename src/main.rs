@@ -1,4 +1,5 @@
 mod bat;
+mod corestat;
 mod cpu;
 mod mem;
 mod usagestat;
