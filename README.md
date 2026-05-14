@@ -11,8 +11,7 @@ A Linux system monitor written in Rust - inspired by btop, built from scratch as
 ## Status
 
 Early stage. Known Issues:
-- Crashes if no battery is present (desktop system) see #4
-- Craches if no swap partition exists (divide by zero) see #5
+- Not handling edge-cases well
 
   Contributions welcome - see the [issue tab](https://github.com/MohamedGonem/sysmon/issues) for `good first issue` tasks.
 
