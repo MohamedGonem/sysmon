@@ -1,20 +1,11 @@
 # sysmon
 ![CI](https://github.com/MohamedGonem/sysmon/actions/workflows/ci.yml/badge.svg)
-
-
 ![Release](https://github.com/MohamedGonem/sysmon/actions/workflows/release.yml/badge.svg)
-
-
 ![License](https://img.shields.io/github/license/MohamedGonem/sysmon)
-
-
 ![Version](https://img.shields.io/github/v/tag/MohamedGonem/sysmon)
-
-
 ![Stars](https://img.shields.io/github/stars/MohamedGonem/sysmon)
-
-
 ![Issues](https://img.shields.io/github/issues/MohamedGonem/sysmon)
+
 A Linux system monitor written in Rust - inspired by btop, built from scratch as a learning project. Designed for the terminal and tmux.
 
 ## Features
