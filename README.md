@@ -5,6 +5,9 @@
 ![Version](https://img.shields.io/github/v/tag/MohamedGonem/sysmon)
 ![Stars](https://img.shields.io/github/stars/MohamedGonem/sysmon)
 ![Issues](https://img.shields.io/github/issues/MohamedGonem/sysmon)
+![Rust](https://img.shields.io/badge/language-Rust-orange)
+![Platform](https://img.shields.io/badge/platform-Linux-blue)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
 
 A Linux system monitor written in Rust - inspired by btop, built from scratch as a learning project. Designed for the terminal and tmux.
 
