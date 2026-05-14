@@ -6,6 +6,7 @@ struct MemStat {
     used_mb: u64,
     free_mb: u64,
     percentage: f64,
+    is_active: Option<bool>,
 }
 
 fn mem_usage() -> (MemStat, MemStat) {
@@ -34,12 +35,22 @@ fn mem_usage() -> (MemStat, MemStat) {
     let mem_used_mb = mem_used / 1024;
     let mem_total_mb = mem_total / 1024;
 
-    let swap_used = swap_total - swap_available;
-    let swap_percentage: f64 = (swap_used * 100) as f64 / swap_total as f64;
+    let swap_state = if swap_total == 0 { false } else { true };
 
-    let swap_free_mb = swap_available / 1024;
-    let swap_used_mb = swap_used / 1024;
-    let swap_total_mb = swap_total / 1024;
+    let swap_used = if swap_state {
+        swap_total - swap_available
+    } else {
+        0
+    };
+    let swap_percentage: f64 = if swap_state {
+        (swap_used * 100) as f64 / swap_total as f64
+    } else {
+        0.0
+    };
+
+    let swap_free_mb = if swap_state { swap_available / 1024 } else { 0 };
+    let swap_used_mb = if swap_state { swap_used / 1024 } else { 0 };
+    let swap_total_mb = if swap_state { swap_total / 1024 } else { 0 };
 
     (
         MemStat {
@@ -47,12 +58,14 @@ fn mem_usage() -> (MemStat, MemStat) {
             used_mb: mem_used_mb,
             percentage: mem_percentage,
             free_mb: mem_free_mb,
+            is_active: None,
         },
         MemStat {
             total_mb: swap_total_mb,
             used_mb: swap_used_mb,
             percentage: swap_percentage,
             free_mb: swap_free_mb,
+            is_active: Some(swap_state),
         },
     )
 }
@@ -75,6 +88,8 @@ pub fn print_mem(env: String, mode: String, detailed: bool) {
         false,
     );
     let mem_total = color_head(mem_stat.total_mb.to_string().as_str(), tmux);
+
+    let swap_state = swap_stat.is_active;
     let swap_head = color_head("Swap", tmux);
     let swap_percentage = color(swap_stat.percentage, tmux);
     let swap_free = color_based_on_percentage(
@@ -104,32 +119,44 @@ pub fn print_mem(env: String, mode: String, detailed: bool) {
             }
         }
         "swap" => {
-            if !detailed {
-                println!("{} {}", swap_head, swap_percentage);
+            if swap_state == Some(true) {
+                if !detailed {
+                    println!("{} {}", swap_head, swap_percentage);
+                } else {
+                    println!("{}:", swap_head);
+                    println!("\tTotal Memory:\t\t{}mb", swap_total);
+                    println!("\tTotal Used:\t\t{}mb", swap_used);
+                    println!("\tTotal Available:\t\t{}mb", swap_free);
+                    println!("\tUsage:\t\t{}", swap_percentage);
+                }
             } else {
-                println!("{}:", swap_head);
-                println!("\tTotal Memory:\t\t{}mb", swap_total);
-                println!("\tTotal Used:\t\t{}mb", swap_used);
-                println!("\tTotal Available:\t\t{}mb", swap_free);
-                println!("\tUsage:\t\t{}", swap_percentage);
+                println!("{}: No swap configured", swap_head);
             }
         }
         "all" => {
             if !detailed {
                 println!("{} {}", mem_head, mem_percentage);
-                println!("{} {}", swap_head, swap_percentage);
+                if swap_state == Some(true) {
+                    println!("{} {}", swap_head, swap_percentage);
+                } else {
+                    println!("{}: No swap configured", swap_head);
+                }
             } else {
                 println!("{}:", mem_head);
                 println!("\tTotal Memory:\t\t{}mb", mem_total);
                 println!("\tTotal Used:\t\t{}mb", mem_used);
                 println!("\tTotal Available:\t\t{}mb", mem_free);
                 println!("\tUsage:\t\t{}", mem_percentage);
-                println!();
-                println!("{}:", swap_head);
-                println!("\tTotal Memory:\t\t{}mb", swap_total);
-                println!("\tTotal Used:\t\t{}mb", swap_used);
-                println!("\tTotal Available:\t\t{}mb", swap_free);
-                println!("\tUsage:\t\t{}", swap_percentage);
+                if swap_state == Some(true) {
+                    println!();
+                    println!("{}:", swap_head);
+                    println!("\tTotal Memory:\t\t{}mb", swap_total);
+                    println!("\tTotal Used:\t\t{}mb", swap_used);
+                    println!("\tTotal Available:\t\t{}mb", swap_free);
+                    println!("\tUsage:\t\t{}", swap_percentage);
+                } else {
+                    println!("{}: No swap configured", swap_head);
+                }
             }
         }
         _ => {}
