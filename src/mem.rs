@@ -35,7 +35,7 @@ fn mem_usage() -> (MemStat, MemStat) {
     let mem_used_mb = mem_used / 1024;
     let mem_total_mb = mem_total / 1024;
 
-    let swap_state = if swap_total == 0 { false } else { true };
+    let swap_state = swap_total != 0;
 
     let swap_used = if swap_state {
         swap_total - swap_available
