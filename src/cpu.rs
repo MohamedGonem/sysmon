@@ -1,7 +1,10 @@
+mod parser;
+
 use crate::corestat::{CoreStat, color_corestat};
 use crate::cpustat::{CPUStat, color_cpustat};
 use crate::usagestat::UsageStat;
 use crate::utils::{color, color_based_on_percentage, color_head};
+use parser::{get_total_from_stat, merge_totals, parse_stat_line};
 use std::f64;
 
 fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
@@ -10,49 +13,14 @@ fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
         l.starts_with(target)
             && l[target.len()..].starts_with(|c: char| c == ' ' || !c.is_ascii_digit())
     })?;
-    let mut nums = line
-        .split_whitespace()
-        .skip(1)
-        .map(|n| n.parse::<u64>().unwrap_or(0));
-    let stats = UsageStat {
-        user: nums.next().unwrap_or(0),
-        nice: nums.next().unwrap_or(0),
-        system: nums.next().unwrap_or(0),
-        idle: nums.next().unwrap_or(0),
-        iowait: nums.next().unwrap_or(0),
-        irq: nums.next().unwrap_or(0),
-        softirq: nums.next().unwrap_or(0),
-        steal: nums.next().unwrap_or(0),
-        guest: nums.next().unwrap_or(0),
-        guest_nice: nums.next().unwrap_or(0),
-    };
-    Some(stats)
+    Some(parse_stat_line(line))
 }
 
 fn get_total(target: &str) -> (u64, u64) {
-    let stats = match get_cpu_or_core_stats(target) {
-        Some(s) => s,
-        None => return (0, 0),
-    };
-    let total = stats.user
-        + stats.nice
-        + stats.system
-        + stats.idle
-        + stats.iowait
-        + stats.irq
-        + stats.softirq
-        + stats.guest
-        + stats.guest_nice
-        + stats.steal;
-    let idle_total = stats.idle + stats.iowait;
-    (total, idle_total)
-}
-
-fn merge_totals((total1, idle_total1): (u64, u64), (total2, idle_total2): (u64, u64)) -> f64 {
-    let total = total2 - total1;
-    let idle_total = idle_total2 - idle_total1;
-
-    100.0 * (1.0 - idle_total as f64 / total as f64)
+    match get_cpu_or_core_stats(target) {
+        Some(s) => get_total_from_stat(s),
+        None => (0, 0),
+    }
 }
 
 fn calc_usage(target: &str) -> f64 {
