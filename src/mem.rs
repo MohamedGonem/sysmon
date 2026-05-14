@@ -9,8 +9,8 @@ struct MemStat {
     is_active: Option<bool>,
 }
 
-fn mem_usage() -> (MemStat, MemStat) {
-    let content = std::fs::read_to_string("/proc/meminfo").unwrap();
+fn mem_usage() -> Option<(MemStat, MemStat)> {
+    let content = std::fs::read_to_string("/proc/meminfo").ok()?;
 
     let mut mem_available = 0u64;
     let mut mem_total = 0u64;
@@ -20,12 +20,22 @@ fn mem_usage() -> (MemStat, MemStat) {
     for line in content.lines() {
         let mut parts = line.split_whitespace();
         match parts.next() {
-            Some("MemTotal:") => mem_total = parts.next().unwrap().parse().unwrap(),
-            Some("MemAvailable:") => mem_available = parts.next().unwrap().parse().unwrap(),
-            Some("SwapTotal:") => swap_total = parts.next().unwrap().parse().unwrap(),
-            Some("SwapFree:") => swap_available = parts.next().unwrap().parse().unwrap(),
+            Some("MemTotal:") => mem_total = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0),
+            Some("MemAvailable:") => {
+                mem_available = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0)
+            }
+            Some("SwapTotal:") => {
+                swap_total = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0)
+            }
+            Some("SwapFree:") => {
+                swap_available = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0)
+            }
             _ => {}
         }
+    }
+
+    if mem_total == 0 {
+        return None;
     }
 
     let mem_used = mem_total - mem_available;
@@ -52,7 +62,7 @@ fn mem_usage() -> (MemStat, MemStat) {
     let swap_used_mb = if swap_state { swap_used / 1024 } else { 0 };
     let swap_total_mb = if swap_state { swap_total / 1024 } else { 0 };
 
-    (
+    Some((
         MemStat {
             total_mb: mem_total_mb,
             used_mb: mem_used_mb,
@@ -67,11 +77,14 @@ fn mem_usage() -> (MemStat, MemStat) {
             free_mb: swap_free_mb,
             is_active: Some(swap_state),
         },
-    )
+    ))
 }
 
 pub fn print_mem(env: String, mode: String, detailed: bool) {
-    let (mem_stat, swap_stat) = mem_usage();
+    let Some((mem_stat, swap_stat)) = mem_usage() else {
+        eprintln!("error: could not read /proc/meminfo");
+        return;
+    };
     let tmux = env == "tmux";
     let mem_head = color_head("Mem", tmux);
     let mem_percentage = color(mem_stat.percentage, tmux);
