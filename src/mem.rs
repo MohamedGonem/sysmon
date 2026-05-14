@@ -93,7 +93,7 @@ pub fn print_mem(env: String, mode: String, detailed: bool) {
     let swap_head = color_head("Swap", tmux);
     let swap_percentage = color(swap_stat.percentage, tmux);
     let swap_free = color_based_on_percentage(
-        mem_stat.free_mb.to_string(),
+        swap_stat.free_mb.to_string(),
         swap_stat.percentage,
         tmux,
         true,
