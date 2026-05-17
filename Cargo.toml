@@ -5,6 +5,7 @@ edition = "2024"
 description = "A Linux system monitoring tool"
 license = "MIT"
 repository = "https://github.com/MohamedGonem/sysmon"
+readme = "README.md"
 
 [[bin]]
 name = "sysmon"
