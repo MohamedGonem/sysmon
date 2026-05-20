@@ -5,10 +5,7 @@ mod parser;
 mod tests;
 mod types;
 use display::{display_core_usage, display_cores_stats, display_cpu_stats, display_cpu_usage};
-use io::{
-    get_core_temperature, get_cpu_model_name, get_cpu_temperature, get_frequency,
-    get_logical_cores, get_physical_cores, read_usage_line,
-};
+use io::*;
 use parser::{get_total_from_stat, merge_totals, parse_stat_line};
 use std::f64;
 use types::{CPUStat, CoreStat, UsageStat};
@@ -41,14 +38,22 @@ fn calc_usages(target_refs: &[&str]) -> Vec<f64> {
 
 fn core_full_stats() -> Vec<CoreStat> {
     let logical_cores = get_logical_cores();
-    (0..logical_cores)
+    let targets: Vec<String> = (0..logical_cores).map(|i| format!("cpu{}", i)).collect();
+    let target_refs: Vec<&str> = targets.iter().map(|s| s.as_str()).collect();
+
+    // sample all at once
+    let totals_1: Vec<_> = target_refs.iter().map(|t| get_total(t)).collect();
+    std::thread::sleep(std::time::Duration::from_millis(1000)); // one sleep only
+    let totals_2: Vec<_> = target_refs.iter().map(|t| get_total(t)).collect();
+
+    (0..logical_cores as usize)
         .map(|i| {
-            let target = format!("cpu{}", i);
+            let target = &targets[i];
             CoreStat {
-                id: i,
-                usage_percentage: calc_usage(&target),
-                temperature: get_core_temperature(i).unwrap_or(0.0),
-                usage: get_cpu_or_core_stats(&target).unwrap_or(UsageStat {
+                id: i as u64,
+                usage_percentage: merge_totals(totals_1[i], totals_2[i]),
+                temperature: get_core_temperature(i as u64),
+                usage: get_cpu_or_core_stats(target).unwrap_or(UsageStat {
                     user: 0,
                     nice: 0,
                     system: 0,
