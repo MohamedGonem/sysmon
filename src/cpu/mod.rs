@@ -102,10 +102,10 @@ pub fn print_cores_stats(env: String) {
     display_cores_stats(cores, tmux);
 }
 
-pub fn print_cpu_stats(env: String) {
+pub fn print_cpu_stats(env: String, cores: bool) {
     let tmux = env == "tmux";
     let cpu = cpu_full_stats();
-    display_cpu_stats(cpu, tmux);
+    display_cpu_stats(cpu, tmux, cores);
 }
 
 pub fn print_cpu_usage(env: String) {
