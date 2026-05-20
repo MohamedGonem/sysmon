@@ -1,5 +1,9 @@
 pub struct CPUStat {
+    pub vendor_id: String,
     pub model_name: String,
+    pub cache_levels: Vec<[String; 3]>,
+    pub governor: String,
+    pub flags: Option<Vec<String>>,
     pub physical_cores_count: u64,
     pub logical_cores_count: u64,
     pub current_frequency: f64,
@@ -14,7 +18,7 @@ pub struct CPUStat {
 pub struct CoreStat {
     pub id: u64,
     pub usage_percentage: f64,
-    pub temperature: f64,
+    pub temperature: Option<f64>,
     pub usage: UsageStat,
 }
 
