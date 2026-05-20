@@ -1,11 +1,10 @@
+mod display;
 mod parser;
-
-use crate::corestat::{CoreStat, color_corestat};
-use crate::cpustat::{CPUStat, color_cpustat};
-use crate::usagestat::UsageStat;
-use crate::utils::{color, color_based_on_percentage, color_head};
+mod types;
+use display::{display_core_usage, display_cores_stats, display_cpu_stats, display_cpu_usage};
 use parser::{get_total_from_stat, merge_totals, parse_stat_line};
 use std::f64;
+use types::{CPUStat, CoreStat, UsageStat};
 
 fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
     let full_stats = std::fs::read_to_string("/proc/stat").ok()?;
