@@ -51,8 +51,59 @@ pub fn get_core_temperature(core_id: u64) -> Option<f64> {
     None
 }
 
+fn get_cpuinfo() -> String {
+    match std::fs::read_to_string("/proc/cpuinfo") {
+        Ok(s) => s.trim().to_string(),
+        Err(_) => "Unknown".to_string(),
+    }
+}
+pub fn get_cpu_flags() -> Option<Vec<String>> {
+    let info = get_cpuinfo();
+    let interseting = [
+        "avx",
+        "avx2",
+        "avx512f",
+        "sse4_1",
+        "fma",
+        "aes",
+        "sgx",
+        "vmx",
+        "svm",
+        "hypervisor",
+        "ht",
+    ];
+    Some(
+        info.lines()
+            .find(|l| l.starts_with("flags"))
+            .and_then(|l| l.split(':').nth(1))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default()
+            .split_whitespace()
+            .filter(|f| interseting.contains(f))
+            .map(|s| s.to_string())
+            .collect::<Vec<_>>(),
+    )
+}
+
+pub fn get_governor(n: &str) -> String {
+    match std::fs::read_to_string(format!(
+        "/sys/devices/system/cpu/cpu{n}/cpufreq/scaling_governor"
+    )) {
+        Ok(s) => s.trim().to_string(),
+        Err(_) => "Unknown".to_string(),
+    }
+}
+
+pub fn get_cpu_vendor_id() -> String {
+    let info = get_cpuinfo();
+    info.lines()
+        .find(|l| l.starts_with("vendor_id"))
+        .and_then(|l| l.split(':').nth(1))
+        .map(|s| s.trim().to_string())
+        .unwrap_or_else(|| "Unknown".to_string())
+}
 pub fn get_cpu_model_name() -> String {
-    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    let info = get_cpuinfo();
     info.lines()
         .find(|l| l.starts_with("model name"))
         .and_then(|l| l.split(':').nth(1))
@@ -61,7 +112,7 @@ pub fn get_cpu_model_name() -> String {
 }
 
 pub fn get_physical_cores() -> u64 {
-    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    let info = get_cpuinfo();
     info.lines()
         .find(|l| l.starts_with("cpu cores"))
         .and_then(|l| l.split(':').nth(1))
@@ -70,13 +121,26 @@ pub fn get_physical_cores() -> u64 {
 }
 
 pub fn get_logical_cores() -> u64 {
-    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+    let info = get_cpuinfo();
     info.lines().filter(|l| l.starts_with("processor")).count() as u64
 }
+
 pub fn get_frequency(path: &str) -> f64 {
     std::fs::read_to_string(path)
         .ok()
         .and_then(|s| s.trim().parse::<f64>().ok())
         .map(|khz| khz / 1000.0)
         .unwrap_or(0.0)
+}
+
+pub fn get_leveln_cache(target: &str) -> [String; 3] {
+    let info_types = ["type", "level", "size"];
+    info_types.map(|info_type| {
+        std::fs::read_to_string(format!(
+            "/sys/devices/system/cpu/cpu0/cache/index{target}/{info_type}"
+        ))
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+    })
 }
