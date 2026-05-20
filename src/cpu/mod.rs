@@ -1,18 +1,18 @@
 mod display;
+mod io;
 mod parser;
 mod types;
 use display::{display_core_usage, display_cores_stats, display_cpu_stats, display_cpu_usage};
+use io::{
+    get_core_temperature, get_cpu_model_name, get_cpu_temperature, get_frequency,
+    get_logical_cores, get_physical_cores, read_usage_line,
+};
 use parser::{get_total_from_stat, merge_totals, parse_stat_line};
 use std::f64;
 use types::{CPUStat, CoreStat, UsageStat};
 
 fn get_cpu_or_core_stats(target: &str) -> Option<UsageStat> {
-    let full_stats = std::fs::read_to_string("/proc/stat").ok()?;
-    let line = full_stats.lines().find(|l| {
-        l.starts_with(target)
-            && l[target.len()..].starts_with(|c: char| c == ' ' || !c.is_ascii_digit())
-    })?;
-    Some(parse_stat_line(line))
+    Some(parse_stat_line(&read_usage_line(target)?))
 }
 
 fn get_total(target: &str) -> (u64, u64) {
@@ -35,70 +35,6 @@ fn calc_usages(target_refs: &[&str]) -> Vec<f64> {
     core::iter::zip(target_refs, totals)
         .map(|(target, totals_1)| merge_totals(totals_1, get_total(target)))
         .collect()
-}
-
-fn get_cpu_temperature() -> Option<f64> {
-    for i in 0..10 {
-        let name_path = format!("/sys/class/hwmon/hwmon{}/name", i);
-        let name = std::fs::read_to_string(&name_path).ok()?;
-        let name = name.trim();
-
-        if name == "coretemp" || name == "k10temp" {
-            let temp_path = format!("/sys/class/hwmon/hwmon{}/temp1_input", i);
-            let raw = std::fs::read_to_string(&temp_path).ok()?;
-            let millidegrees: f64 = raw.trim().parse().ok()?;
-            return Some(millidegrees / 1000.0);
-        }
-    }
-    let raw = std::fs::read_to_string("/sys/class/thermal/thermal_zone0/temp").ok()?;
-    let millidegrees: f64 = raw.trim().parse().ok()?;
-    Some(millidegrees / 1000.0)
-}
-
-fn get_core_temperature(core_id: u64) -> Option<f64> {
-    for i in 0..10 {
-        let name_path = format!("/sys/class/hwmon/hwmon{}/name", i);
-        let name = std::fs::read_to_string(&name_path).ok()?;
-        let name = name.trim();
-
-        if name == "coretemp" || name == "k10temp" {
-            let temp_path = format!("/sys/class/hwmon/hwmon{}/temp{}_input", i, core_id + 2);
-            let raw = std::fs::read_to_string(&temp_path).ok()?;
-            let millidegree: f64 = raw.trim().parse().ok()?;
-            return Some(millidegree / 1000.0);
-        }
-    }
-    None
-}
-
-fn get_cpu_model_name() -> String {
-    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
-    info.lines()
-        .find(|l| l.starts_with("model name"))
-        .and_then(|l| l.split(':').nth(1))
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "Unknown".to_string())
-}
-
-fn get_physical_cores() -> u64 {
-    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
-    info.lines()
-        .find(|l| l.starts_with("cpu cores"))
-        .and_then(|l| l.split(':').nth(1))
-        .and_then(|s| s.trim().parse().ok())
-        .unwrap_or(1)
-}
-
-fn get_logical_cores() -> u64 {
-    let info = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
-    info.lines().filter(|l| l.starts_with("processor")).count() as u64
-}
-fn get_frequency(path: &str) -> f64 {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|s| s.trim().parse::<f64>().ok())
-        .map(|khz| khz / 1000.0)
-        .unwrap_or(0.0)
 }
 
 fn core_full_stats() -> Vec<CoreStat> {
