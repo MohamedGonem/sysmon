@@ -22,4 +22,6 @@ jobs:
         run: cargo build --release
 
       - name: Publish dry run
-        run: cargo publish --dry-run --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --dry-run
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
