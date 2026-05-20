@@ -83,12 +83,21 @@ fn main() {
 
     if cli.cpu {
         match cli.detailed {
-            false => cpu::print_cpu_usage(env.clone()),
-            true => cpu::print_cpu_stats(env.clone()),
+            false => match cli.core {
+                true => {
+                    cpu::print_cpu_usage(env.clone());
+                    cpu::print_core_usage(env.clone());
+                }
+                false => cpu::print_core_usage(env.clone()),
+            },
+            true => match cli.core {
+                true => cpu::print_cpu_stats(env.clone(), true),
+                false => cpu::print_cpu_stats(env.clone(), false),
+            },
         }
     }
 
-    if cli.core {
+    if cli.core && !cli.cpu {
         match cli.detailed {
             false => cpu::print_core_usage(env.clone()),
             true => cpu::print_cores_stats(env.clone()),
