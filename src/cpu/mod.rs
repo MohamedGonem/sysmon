@@ -156,32 +156,19 @@ fn cpu_full_stats() -> CPUStat {
 pub fn print_cores_stats(env: String) {
     let tmux = env == "tmux";
     let cores = core_full_stats();
-    let len = cores.len();
-    println!("{}\n{}", color_head("[Cores]", tmux), "-".repeat(35));
-    for (i, core) in cores.into_iter().enumerate() {
-        let colored_core = color_corestat(core, tmux, false);
-        for stat in colored_core {
-            println!("{}", stat);
-        }
-        if i < len - 1 {
-            println!("{}", "-".repeat(25));
-        }
-    }
+    display_cores_stats(cores, tmux);
 }
 
 pub fn print_cpu_stats(env: String) {
     let tmux = env == "tmux";
     let cpu = cpu_full_stats();
-    let cpu = color_cpustat(cpu, tmux);
-    for stat in cpu.into_iter() {
-        println!("{stat}");
-    }
+    display_cpu_stats(cpu, tmux);
 }
 
 pub fn print_cpu_usage(env: String) {
     let tmux = env == "tmux";
     let usage = calc_usage("cpu");
-    println!("CPU {}", color(usage, tmux));
+    display_cpu_usage(usage, tmux);
 }
 
 pub fn print_core_usage(env: String) {
@@ -191,12 +178,5 @@ pub fn print_core_usage(env: String) {
     let target_refs: Vec<&str> = targets.iter().map(|s| s.as_str()).collect();
     let usages = calc_usages(&target_refs);
 
-    for (i, usage) in usages.iter().enumerate() {
-        println!(
-            "{}[{}] {}",
-            color_head("Core", tmux),
-            color_based_on_percentage(i.to_string(), usage.to_owned(), tmux, false),
-            color(usage.to_owned(), tmux)
-        );
-    }
+    display_core_usage(usages, tmux);
 }

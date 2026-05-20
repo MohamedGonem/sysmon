@@ -109,3 +109,47 @@ pub fn color_cpustat(target: CPUStat, tmux: bool) -> Vec<String> {
 // -------------------------------------------
 // end of display struct type
 // -------------------------------------------
+
+// ! need comment
+pub fn display_cores_stats(cores: Vec<CoreStat>, tmux: bool) {
+    let len = cores.len();
+    println!("{}\n{}", color_head("[Cores]", tmux), "-".repeat(35));
+    for (i, core) in cores.into_iter().enumerate() {
+        let colored_core = color_corestat(core, tmux, false);
+        for stat in colored_core {
+            println!("{}", stat);
+        }
+        if i < len - 1 {
+            println!("{}", "-".repeat(25));
+        }
+    }
+}
+
+// ! need comment
+pub fn display_cpu_stats(cpu: CPUStat, tmux: bool) {
+    let cpu = color_cpustat(cpu, tmux);
+    for stat in cpu.into_iter() {
+        println!("{stat}");
+    }
+}
+
+// ! need comment
+pub fn display_cpu_usage(usage: f64, tmux: bool) {
+    println!("CPU {}", color(usage, tmux));
+}
+
+// ! need comment
+pub fn display_core_usage(usages: Vec<f64>, tmux: bool) {
+    for (i, usage) in usages.iter().enumerate() {
+        println!(
+            "{}[{}] {}",
+            color_head("Core", tmux),
+            color_based_on_percentage(i.to_string(), usage.to_owned(), tmux, false),
+            color(usage.to_owned(), tmux)
+        );
+    }
+}
+
+// -------------------------------
+// end of display helper functions
+// -------------------------------
