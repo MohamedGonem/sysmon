@@ -1,6 +1,8 @@
 mod display;
 mod io;
 mod parser;
+#[cfg(test)]
+mod tests;
 mod types;
 use display::{display_core_usage, display_cores_stats, display_cpu_stats, display_cpu_usage};
 use io::{
