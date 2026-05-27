@@ -129,35 +129,34 @@ fn main() {
         bat::print_battery(env.clone());
     }
 
-    let no_option_selected =
-        true && {
-            #[cfg(feature = "cpu")]
-            {
-                !cli.cpu && !cli.core
-            }
-            #[cfg(not(feature = "cpu"))]
-            {
-                true
-            }
-        } && {
-            #[cfg(feature = "mem")]
-            {
-                cli.mem.is_none()
-            }
-            #[cfg(not(feature = "mem"))]
-            {
-                true
-            }
-        } && {
-            #[cfg(feature = "bat")]
-            {
-                !cli.bat
-            }
-            #[cfg(not(feature = "bat"))]
-            {
-                true
-            }
-        };
+    let no_option_selected = {
+        #[cfg(feature = "cpu")]
+        {
+            !cli.cpu && !cli.core
+        }
+        #[cfg(not(feature = "cpu"))]
+        {
+            true
+        }
+    } && {
+        #[cfg(feature = "mem")]
+        {
+            cli.mem.is_none()
+        }
+        #[cfg(not(feature = "mem"))]
+        {
+            true
+        }
+    } && {
+        #[cfg(feature = "bat")]
+        {
+            !cli.bat
+        }
+        #[cfg(not(feature = "bat"))]
+        {
+            true
+        }
+    };
 
     if no_option_selected {
         println!("No option specified. Use --help for usage.")
