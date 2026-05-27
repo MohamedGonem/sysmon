@@ -1,6 +1,6 @@
 [package]
 name = "rsysmon"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 description = "A Linux system monitoring tool"
 license = "MIT"
@@ -15,7 +15,8 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive"] }
 
 [features]
-default = ["cpu", "mem", "bat", "tmux"]
+default = ["sys","cpu", "mem", "bat", "tmux"]
+sys = ["tmux"]
 cpu = ["tmux"]
 mem = ["tmux"]
 bat = ["tmux"]

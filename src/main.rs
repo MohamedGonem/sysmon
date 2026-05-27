@@ -7,6 +7,9 @@ mod cpu;
 #[cfg(feature = "mem")]
 mod mem;
 
+#[cfg(feature = "sys")]
+mod sys;
+
 mod utils;
 
 use clap::{Parser, ValueEnum};
@@ -16,6 +19,11 @@ use clap::{Parser, ValueEnum};
 #[command(version = "0.1")]
 #[command(about = "Personal system monitor tool", long_about = None)]
 struct Cli {
+    ///Show system information
+    #[cfg(feature = "sys")]
+    #[arg(long = "sys", short = 'S')]
+    sys: bool,
+
     ///Show CPU usage (or full details with -d flag)
     #[cfg(feature = "cpu")]
     #[arg(long = "cpu", short = 'C')]
@@ -94,6 +102,11 @@ fn main() {
         Some(Mem::All) | None => "all".to_string(),
     };
 
+    #[cfg(feature = "sys")]
+    if cli.sys {
+        sys::print_sys(env.clone());
+    }
+
     #[cfg(feature = "cpu")]
     if cli.cpu {
         match cli.detailed {
@@ -130,6 +143,15 @@ fn main() {
     }
 
     let no_option_selected = {
+        #[cfg(feature = "sys")]
+        {
+            !cli.sys
+        }
+        #[cfg(not(feature = "sys"))]
+        {
+            true
+        }
+    } && {
         #[cfg(feature = "cpu")]
         {
             !cli.cpu && !cli.core

@@ -72,8 +72,8 @@ Options:
 CPU
 ---
 - [x] model name
-- [ ] vendor id
-- [ ] cache size
+- [x] vendor id
+- [x] cache size
 - [x] physical cores count
 - [x] logical cores count
 - [x] min frequency
@@ -118,12 +118,12 @@ MEMORY & SWAP
 
 SYSTEM INFO
 -----------
-- [ ] hostname
-- [ ] kernel version
-- [ ] uptime (raw seconds + formatted d/h/m/s)
-- [ ] distro name (/etc/os-release)
-- [ ] architecture
-- [ ] boot time
+- [x] hostname
+- [x] kernel version
+- [x] uptime (raw seconds + formatted d/h/m/s)
+- [x] distro name (/etc/os-release)
+- [x] architecture
+- [x] boot time
 
 BATTERY
 -------
