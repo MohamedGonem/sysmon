@@ -1,3 +1,4 @@
+![sysmon logo](logo.svg)
 # sysmon
 ![CI](https://github.com/MohamedGonem/sysmon/actions/workflows/ci.yml/badge.svg)
 ![Release](https://github.com/MohamedGonem/sysmon/actions/workflows/release.yml/badge.svg)
