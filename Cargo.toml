@@ -14,3 +14,10 @@ path = "src/main.rs"
 [dependencies]
 colored = "2"
 clap = { version = "4", features = ["derive"] }
+
+[features]
+default = ["cpu", "mem", "bat", "tmux"]
+cpu = []
+mem = []
+bat = []
+tmux = []
