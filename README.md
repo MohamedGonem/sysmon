@@ -27,15 +27,20 @@ Early stage. Known Issues:
 
 ## Installation
 
+### Using Cargo
+```bash
+cargo install rsysmon
+```
+
 ### From binary (Linux x86_64)
 download from releases page
-```
+```bash
 chmod +x sysmon
 sudo mv sysmon /usr/local/bin/
 ```
 
 ### From source
-```
+```bash
 git clone https://github.com/MohamedGonem/sysmon
 cd sysmon
 cargo build --release
@@ -45,13 +50,13 @@ sudo mv target/release/sysmon /usr/local/bin/
 ## Dependencies
 
 - [`clap`](https://github.com/clap-rs/clap) - CLI argument parsing
-- [`colored`](https://github.com/colored-rs/colored) - terminal colors
 
 ## Usage
 ---------
 ```
 Usage: sysmon [OPTIONS]
 Options:
+  -S, --sys        Show system information
   -C, --cpu        Show CPU usage (or full details with -d flag)
   -c, --cores      Show Core usage (or full details with -d flag)
   -m, --mem <MEM>  Show memory stats [possible values: memory, swap, all]
