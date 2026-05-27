@@ -1,5 +1,7 @@
 mod display;
 mod io;
+#[cfg(test)]
+mod tests;
 mod types;
 
 pub fn print_mem(env: String, mode: String, detailed: bool) {
