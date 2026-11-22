@@ -141,6 +141,7 @@ PROCESSES
    - [x] parent pid
    - [x] nice value
    - [x] start time
+- [x] search by text or regex (PID, name, user, and command line)
 
 TEMPERATURES & FANS
 -------------------
@@ -154,6 +155,7 @@ TEMPERATURES & FANS
 
 - [x] show system, CPU, cores, memory/swap, and battery
 - [x] show network, disk, processes, and sensors
+- [x] process search with literal text or regex (`-s`, `-r`)
 - [x] detailed output (`-d`)
 - [x] tmux output (`-e tmux`)
 - [x] manual argument parsing, short-flag clusters, and `--help`/`--version`

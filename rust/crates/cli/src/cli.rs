@@ -2,10 +2,14 @@ use std::ffi::OsString;
 use std::fmt;
 use std::str::FromStr;
 
+use sysmon_core::search::SearchMode;
+
 const MEM_OPTION: &str = "--mem <MEM>";
 const MEM_VALUES: &str = "memory, swap, all";
 const ENV_OPTION: &str = "--env <ENV>";
 const ENV_VALUES: &str = "tmux, normal";
+const SEARCH_OPTION: &str = "--search <TEXT>";
+const REGEX_OPTION: &str = "--regex <REGEX>";
 
 pub const HELP: &str = "\
 Personal system monitor tool
@@ -13,19 +17,21 @@ Personal system monitor tool
 Usage: sysmon-cli [OPTIONS]
 
 Options:
-  -S, --sys        Show system information
-  -C, --cpu        Show CPU usage (or full details with -d flag)
-  -c, --cores      Show Core usage (or full details with -d flag)
-  -m, --mem <MEM>  Show memory stats [possible values: memory, swap, all]
-  -b, --bat        Show battery level and charging status
-  -n, --net        Show network stats
-  -D, --disk       Show disk usage (or full details with -d flag)
-  -p, --proc       Show process stats (or full details with -d flag)
-  -t, --sensors    Show temperatures and fans
-  -e, --env <ENV>  Output format for your terminal environment [default: normal] [possible values: tmux, normal]
-  -d, --detailed   Output detailed information
-  -h, --help       Print help
-  -V, --version    Print version
+  -S, --sys              Show system information
+  -C, --cpu              Show CPU usage (or full details with -d flag)
+  -c, --cores            Show Core usage (or full details with -d flag)
+  -m, --mem <MEM>        Show memory stats [possible values: memory, swap, all]
+  -b, --bat              Show battery level and charging status
+  -n, --net              Show network stats
+  -D, --disk             Show disk usage (or full details with -d flag)
+  -p, --proc             Show process stats (or full details with -d flag)
+  -s, --search <TEXT>    Filter processes by text (case-insensitive)
+  -r, --regex <REGEX>    Filter processes by regex (case-insensitive)
+  -t, --sensors          Show temperatures and fans
+  -e, --env <ENV>        Output format for your terminal environment [default: normal] [possible values: tmux, normal]
+  -d, --detailed         Output detailed information
+  -h, --help             Print help
+  -V, --version          Print version
 ";
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -38,9 +44,16 @@ pub struct Cli {
     pub net: bool,
     pub disk: bool,
     pub process: bool,
+    pub search: Option<Search>,
     pub sensors: bool,
     pub env: Env,
     pub detailed: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Search {
+    pub pattern: String,
+    pub mode: SearchMode,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -55,7 +68,7 @@ pub enum ParseError {
     UnexpectedArgument(String),
     MissingValue {
         option: &'static str,
-        possible: &'static str,
+        possible: Option<&'static str>,
     },
     InvalidValue {
         option: &'static str,
@@ -71,10 +84,16 @@ impl fmt::Display for ParseError {
             Self::UnexpectedArgument(argument) => {
                 write!(f, "unexpected argument '{argument}' found")
             }
-            Self::MissingValue { option, possible } => write!(
-                f,
-                "a value is required for '{option}' but none was supplied\n  [possible values: {possible}]"
-            ),
+            Self::MissingValue { option, possible } => {
+                write!(
+                    f,
+                    "a value is required for '{option}' but none was supplied"
+                )?;
+                if let Some(possible) = possible {
+                    write!(f, "\n  [possible values: {possible}]")?;
+                }
+                Ok(())
+            }
             Self::InvalidValue {
                 option,
                 value,
@@ -118,13 +137,31 @@ impl Cli {
                 "-n" | "--net" => cli.net = true,
                 "-D" | "--disk" => cli.disk = true,
                 "-p" | "--proc" => cli.process = true,
+                "-s" | "--search" => {
+                    set_search(
+                        &mut cli,
+                        next_value(&mut args, SEARCH_OPTION, None)?,
+                        SearchMode::Literal,
+                    );
+                }
+                "-r" | "--regex" => {
+                    set_search(
+                        &mut cli,
+                        next_value(&mut args, REGEX_OPTION, None)?,
+                        SearchMode::Regex,
+                    );
+                }
                 "-t" | "--sensors" => cli.sensors = true,
                 "-d" | "--detailed" => cli.detailed = true,
                 "-e" | "--env" => {
-                    cli.env = parse_env(next_value(&mut args, ENV_OPTION, ENV_VALUES)?)?;
+                    cli.env = parse_env(next_value(&mut args, ENV_OPTION, Some(ENV_VALUES))?)?;
                 }
                 "-m" | "--mem" => {
-                    cli.mem = Some(parse_mem(next_value(&mut args, MEM_OPTION, MEM_VALUES)?)?);
+                    cli.mem = Some(parse_mem(next_value(
+                        &mut args,
+                        MEM_OPTION,
+                        Some(MEM_VALUES),
+                    )?)?);
                 }
                 "--" => {
                     if let Some(extra) = args.next() {
@@ -135,9 +172,25 @@ impl Cli {
                 }
                 _ => {
                     if let Some(value) = argument.strip_prefix("--env=") {
-                        cli.env = parse_env(inline_value(value, ENV_OPTION, ENV_VALUES)?)?;
+                        cli.env = parse_env(inline_value(value, ENV_OPTION, Some(ENV_VALUES))?)?;
                     } else if let Some(value) = argument.strip_prefix("--mem=") {
-                        cli.mem = Some(parse_mem(inline_value(value, MEM_OPTION, MEM_VALUES)?)?);
+                        cli.mem = Some(parse_mem(inline_value(
+                            value,
+                            MEM_OPTION,
+                            Some(MEM_VALUES),
+                        )?)?);
+                    } else if let Some(value) = argument.strip_prefix("--search=") {
+                        set_search(
+                            &mut cli,
+                            inline_value(value, SEARCH_OPTION, None)?,
+                            SearchMode::Literal,
+                        );
+                    } else if let Some(value) = argument.strip_prefix("--regex=") {
+                        set_search(
+                            &mut cli,
+                            inline_value(value, REGEX_OPTION, None)?,
+                            SearchMode::Regex,
+                        );
                     } else if let Some(cluster) = argument
                         .strip_prefix('-')
                         .filter(|rest| !rest.is_empty() && !rest.starts_with('-'))
@@ -233,10 +286,15 @@ fn parse_env(value: String) -> Result<Env, ParseError> {
     }
 }
 
+fn set_search(cli: &mut Cli, pattern: String, mode: SearchMode) {
+    cli.search = Some(Search { pattern, mode });
+    cli.process = true;
+}
+
 fn next_value<I>(
     args: &mut I,
     option: &'static str,
-    possible: &'static str,
+    possible: Option<&'static str>,
 ) -> Result<String, ParseError>
 where
     I: Iterator<Item = OsString>,
@@ -251,7 +309,7 @@ where
 fn inline_value(
     value: &str,
     option: &'static str,
-    possible: &'static str,
+    possible: Option<&'static str>,
 ) -> Result<String, ParseError> {
     if value.is_empty() {
         Err(ParseError::MissingValue { option, possible })
@@ -281,11 +339,13 @@ where
             'd' => cli.detailed = true,
             'h' => return Ok(Some(ParseOutcome::Help)),
             'V' => return Ok(Some(ParseOutcome::Version)),
-            'e' | 'm' => {
-                let (option, possible) = if short == 'e' {
-                    (ENV_OPTION, ENV_VALUES)
-                } else {
-                    (MEM_OPTION, MEM_VALUES)
+            'e' | 'm' | 's' | 'r' => {
+                let (option, possible) = match short {
+                    'e' => (ENV_OPTION, Some(ENV_VALUES)),
+                    'm' => (MEM_OPTION, Some(MEM_VALUES)),
+                    's' => (SEARCH_OPTION, None),
+                    'r' => (REGEX_OPTION, None),
+                    _ => unreachable!(),
                 };
 
                 let rest = &cluster[index + short.len_utf8()..];
@@ -297,10 +357,12 @@ where
                     rest.to_string()
                 };
 
-                if short == 'e' {
-                    cli.env = parse_env(value)?;
-                } else {
-                    cli.mem = Some(parse_mem(value)?);
+                match short {
+                    'e' => cli.env = parse_env(value)?,
+                    'm' => cli.mem = Some(parse_mem(value)?),
+                    's' => set_search(cli, value, SearchMode::Literal),
+                    'r' => set_search(cli, value, SearchMode::Regex),
+                    _ => unreachable!(),
                 }
 
                 return Ok(None);
@@ -339,6 +401,7 @@ mod tests {
         assert!(!cli.net);
         assert!(!cli.disk);
         assert!(!cli.process);
+        assert_eq!(cli.search, None);
         assert!(!cli.sensors);
         assert_eq!(cli.env, Env::Normal);
         assert!(!cli.detailed);
@@ -429,6 +492,88 @@ mod tests {
     }
 
     #[test]
+    fn parses_literal_search_in_every_supported_form() {
+        for args in [
+            &["--search", "firefox"][..],
+            &["--search=firefox"][..],
+            &["-s", "firefox"][..],
+            &["-sfirefox"][..],
+            &["-s=firefox"][..],
+        ] {
+            let cli = run(args);
+
+            assert_eq!(
+                cli.search,
+                Some(Search {
+                    pattern: "firefox".to_string(),
+                    mode: SearchMode::Literal,
+                }),
+                "{args:?}"
+            );
+            assert!(cli.process, "search should imply --proc: {args:?}");
+        }
+    }
+
+    #[test]
+    fn parses_regex_search_in_every_supported_form() {
+        for args in [
+            &["--regex", "^fire.*"][..],
+            &["--regex=^fire.*"][..],
+            &["-r", "^fire.*"][..],
+            &["-r^fire.*"][..],
+            &["-r=^fire.*"][..],
+        ] {
+            let cli = run(args);
+
+            assert_eq!(
+                cli.search,
+                Some(Search {
+                    pattern: "^fire.*".to_string(),
+                    mode: SearchMode::Regex,
+                }),
+                "{args:?}"
+            );
+            assert!(cli.process, "regex search should imply --proc: {args:?}");
+        }
+    }
+
+    #[test]
+    fn later_search_overrides_earlier_ones() {
+        let cli = run(&["-s", "fire", "-r", "^fire"]);
+
+        assert_eq!(
+            cli.search,
+            Some(Search {
+                pattern: "^fire".to_string(),
+                mode: SearchMode::Regex,
+            })
+        );
+    }
+
+    #[test]
+    fn search_works_inside_short_flag_clusters() {
+        let cli = run(&["-psfirefox"]);
+        assert!(cli.process);
+        assert_eq!(
+            cli.search,
+            Some(Search {
+                pattern: "firefox".to_string(),
+                mode: SearchMode::Literal,
+            })
+        );
+
+        let cli = run(&["-dr^fire"]);
+        assert!(cli.detailed);
+        assert_eq!(
+            cli.search,
+            Some(Search {
+                pattern: "^fire".to_string(),
+                mode: SearchMode::Regex,
+            })
+        );
+    }
+
+    #[test]
     fn later_values_override_earlier_ones() {
         let cli = run(&["--mem", "swap", "--mem", "all"]);
 
@@ -453,35 +598,77 @@ mod tests {
             parse(&["--mem"]),
             Err(ParseError::MissingValue {
                 option: MEM_OPTION,
-                possible: MEM_VALUES,
+                possible: Some(MEM_VALUES),
             })
         );
         assert_eq!(
             parse(&["--mem="]),
             Err(ParseError::MissingValue {
                 option: MEM_OPTION,
-                possible: MEM_VALUES,
+                possible: Some(MEM_VALUES),
             })
         );
         assert_eq!(
             parse(&["-m="]),
             Err(ParseError::MissingValue {
                 option: MEM_OPTION,
-                possible: MEM_VALUES,
+                possible: Some(MEM_VALUES),
             })
         );
         assert_eq!(
             parse(&["--env"]),
             Err(ParseError::MissingValue {
                 option: ENV_OPTION,
-                possible: ENV_VALUES,
+                possible: Some(ENV_VALUES),
             })
         );
         assert_eq!(
             parse(&["--env="]),
             Err(ParseError::MissingValue {
                 option: ENV_OPTION,
-                possible: ENV_VALUES,
+                possible: Some(ENV_VALUES),
+            })
+        );
+        assert_eq!(
+            parse(&["--search"]),
+            Err(ParseError::MissingValue {
+                option: SEARCH_OPTION,
+                possible: None,
+            })
+        );
+        assert_eq!(
+            parse(&["--search="]),
+            Err(ParseError::MissingValue {
+                option: SEARCH_OPTION,
+                possible: None,
+            })
+        );
+        assert_eq!(
+            parse(&["-s="]),
+            Err(ParseError::MissingValue {
+                option: SEARCH_OPTION,
+                possible: None,
+            })
+        );
+        assert_eq!(
+            parse(&["--regex"]),
+            Err(ParseError::MissingValue {
+                option: REGEX_OPTION,
+                possible: None,
+            })
+        );
+        assert_eq!(
+            parse(&["--regex="]),
+            Err(ParseError::MissingValue {
+                option: REGEX_OPTION,
+                possible: None,
+            })
+        );
+        assert_eq!(
+            parse(&["-r="]),
+            Err(ParseError::MissingValue {
+                option: REGEX_OPTION,
+                possible: None,
             })
         );
     }
@@ -556,6 +743,8 @@ mod tests {
             "--net",
             "--disk",
             "--proc",
+            "--search",
+            "--regex",
             "--sensors",
             "--env",
             "--detailed",

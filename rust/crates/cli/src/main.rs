@@ -12,15 +12,13 @@ mod utils;
 use std::process::ExitCode;
 
 use cli::{Cli, ParseOutcome};
+use sysmon_core::search::ProcessFilter;
 
 fn main() -> ExitCode {
     restore_sigpipe();
 
     match Cli::parse_args() {
-        Ok(ParseOutcome::Run(cli)) => {
-            run(cli);
-            ExitCode::SUCCESS
-        }
+        Ok(ParseOutcome::Run(cli)) => run(cli),
         Ok(ParseOutcome::Help) => {
             print!("{}", cli::HELP);
             ExitCode::SUCCESS
@@ -45,8 +43,18 @@ fn restore_sigpipe() {
     }
 }
 
-fn run(cli: Cli) {
+fn run(cli: Cli) -> ExitCode {
     let tmux = cli.env.is_tmux();
+    let process_filter = match cli.search.as_ref() {
+        Some(search) => match ProcessFilter::new(&search.pattern, search.mode) {
+            Ok(filter) => Some(filter),
+            Err(error) => {
+                eprintln!("error: invalid search pattern: {error}");
+                return ExitCode::from(2);
+            }
+        },
+        None => None,
+    };
 
     if cli.sys {
         sys::print_sys(tmux);
@@ -84,7 +92,7 @@ fn run(cli: Cli) {
     }
 
     if cli.process {
-        proc::print_processes(tmux, cli.detailed);
+        proc::print_processes(tmux, cli.detailed, process_filter.as_ref());
     }
 
     if cli.sensors {
@@ -99,9 +107,12 @@ fn run(cli: Cli) {
         && !cli.net
         && !cli.disk
         && !cli.process
+        && cli.search.is_none()
         && !cli.sensors;
 
     if no_option_selected {
         println!("No option specified. Use --help for usage.")
     }
+
+    ExitCode::SUCCESS
 }

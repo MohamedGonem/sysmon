@@ -1,22 +1,40 @@
 use std::time::Duration;
 
 use crate::utils::{color, color_head, format_bytes, truncate};
+use sysmon_core::search::ProcessFilter;
 use sysmon_core::sys::format_epoch;
 use sysmon_core::types::{ProcessStat, ProcessStats};
 
 const SAMPLE_WINDOW: Duration = Duration::from_secs(1);
 
-pub fn print_processes(tmux: bool, detailed: bool) {
+pub fn print_processes(tmux: bool, detailed: bool, filter: Option<&ProcessFilter>) {
     match ProcessStats::sample(SAMPLE_WINDOW) {
-        Some(stats) => display_processes(stats, tmux, detailed),
+        Some(stats) => display_processes(stats, tmux, detailed, filter),
         None => eprintln!("error: could not read process statistics"),
     }
 }
 
-fn display_processes(stats: ProcessStats, tmux: bool, detailed: bool) {
-    let mut processes = stats.processes;
+fn display_processes(
+    stats: ProcessStats,
+    tmux: bool,
+    detailed: bool,
+    filter: Option<&ProcessFilter>,
+) {
+    let current_pid = std::process::id();
+    let mut processes: Vec<_> = stats
+        .processes
+        .into_iter()
+        // The search pattern is part of this process's own command line, so
+        // it would otherwise always match itself.
+        .filter(|process| filter.is_none() || process.pid != current_pid)
+        .filter(|process| filter.is_none_or(|filter| filter.is_match(process)))
+        .collect();
+
     if processes.is_empty() {
-        println!("No processes found");
+        match filter {
+            Some(filter) => println!("No processes matching '{}'", filter.pattern()),
+            None => println!("No processes found"),
+        }
         return;
     }
 
