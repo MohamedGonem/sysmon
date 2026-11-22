@@ -14,6 +14,9 @@ permissions:
 jobs:
   build-linux:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rust
 
     steps:
       - name: Checkout
@@ -24,26 +27,40 @@ jobs:
 
       - name: Cache
         uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
 
-      - name: Build release binary
-        run: cargo build --release
+      - name: Build release binaries
+        run: cargo build --release -p rsysmon-cli -p rsysmond -p rsysmon
 
       - name: Upload to release
         uses: softprops/action-gh-release@v1
         with:
-          files: target/release/sysmon
+          files: |
+            rust/target/release/sysmon-cli
+            rust/target/release/sysmond
+            rust/target/release/sysmon
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   publish:
     runs-on: ubuntu-latest
     needs: build-linux
+    defaults:
+      run:
+        working-directory: rust
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Package workspace
+        run: cargo package --workspace --no-verify
+
+      # Verification compiles against the published core, which lags this workspace.
+      # The build job already compiles every binary.
       - name: Publish dry run
-        run: cargo publish --dry-run
+        run: cargo publish --dry-run --workspace --no-verify
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
