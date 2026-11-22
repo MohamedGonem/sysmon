@@ -1,0 +1,23 @@
+[package]
+name = "rsysmon-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "A Linux system monitoring tool's CLI implementation"
+repository = "https://github.com/MohamedGonem/sysmon"
+readme = "README.md"
+
+[[bin]]
+name = "sysmon-cli"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+
+[features]
+default = ["sys","cpu", "mem", "bat", "tmux"]
+sys = []
+cpu = []
+mem = []
+bat = []
+tmux = []

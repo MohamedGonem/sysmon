@@ -1,0 +1,20 @@
+[package]
+name = "rsysmon-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "A Linux system monitoring tool's core"
+repository = "https://github.com/MohamedGonem/sysmon"
+readme = "README.md"
+
+[lib]
+name = "sysmon_core"
+path = "src/lib.rs"
+
+[features]
+default = ["sys","cpu", "mem", "bat", "tmux"]
+sys = ["tmux"]
+cpu = ["tmux"]
+mem = ["tmux"]
+bat = ["tmux"]
+tmux = []
