@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::utils::{color, color_based_on_percentage, color_head};
+use crate::utils::{color, color_head, format_frequency};
 use sysmon_core::cpu::CpuTimes;
 use sysmon_core::types::{CPUStat, CoreStat, UsageStat};
 
@@ -70,32 +70,56 @@ fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String> {
     let core_id = format!(
         "{}[{}]",
         color_head("\tCore", tmux),
-        color_based_on_percentage(target.id.to_string(), target.usage_percentage, tmux, false)
+        color_head(&target.id.to_string(), tmux)
     );
+    let core_state = if target.online {
+        format!("\t[{}]", color(target.usage_percentage, tmux))
+    } else {
+        format!("\t[{}]", color_head("offline", tmux))
+    };
     let core_temperature = match target.temperature {
         Some(temperature) => format!(
-            "\t\t{} {:0.1}c",
+            "\t\t{} [{:0.1} C]",
             color_head("Temperature", tmux),
             temperature
         ),
-        None => format!("\t\t{} N/A", color_head("Temperature", tmux)),
+        None => format!("\t\t{} [N/A]", color_head("Temperature", tmux)),
     };
-    let core_usage_percentage = format!("\t[{}]", color(target.usage_percentage, tmux));
+    let core_frequency = match target.current_frequency {
+        Some(frequency) => format!(
+            "\t\t{} [{}]",
+            color_head("Frequency", tmux),
+            format_frequency(frequency)
+        ),
+        None => format!("\t\t{} [N/A]", color_head("Frequency", tmux)),
+    };
+    let core_governor = match target.governor {
+        Some(governor) => format!("\t\t{} [{}]", color_head("Governor", tmux), governor),
+        None => format!("\t\t{} [N/A]", color_head("Governor", tmux)),
+    };
+    let core_online = format!("\t\t{} [{}]", color_head("Online", tmux), target.online);
 
     let core_usage = color_usagestat(target.usage, tmux);
+    let header = format!("{core_id}{core_state}");
+
     if !newline {
         let core_stat = vec![
-            core_id,
-            core_usage_percentage,
+            header,
             core_temperature,
+            core_frequency,
+            core_governor,
+            core_online,
             format!("\t\t{}", "-".repeat(10)),
         ];
         [core_stat, core_usage].concat()
     } else {
         let core_stat = vec![
             "-".repeat(10),
-            core_id,
+            header,
             core_temperature,
+            core_frequency,
+            core_governor,
+            core_online,
             format!("\t\t{}", "-".repeat(10)),
         ];
         [core_stat, core_usage].concat()
@@ -103,6 +127,10 @@ fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String> {
 }
 
 fn format_cache_levels(target: Vec<[String; 3]>, tmux: bool) -> Vec<String> {
+    if target.is_empty() {
+        return Vec::new();
+    }
+
     let mut result = vec![color_head("Cache Info", tmux)];
     result.extend(target.iter().flat_map(|cache| {
         let [cache_type, cache_level, cache_size] = cache;
@@ -145,24 +173,45 @@ fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) {
         target.logical_cores_count
     );
     let current_frequency = format!(
-        "{} [{:0.1}MHZ]",
+        "{} [{}]",
         color_head("Frequency", tmux),
-        target.current_frequency
+        format_frequency(target.current_frequency)
     );
     let min_frequency = format!(
-        "{} [{:0.1}MHZ]",
+        "{} [{}]",
         color_head("Min Frequency", tmux),
-        target.min_frequency
+        format_frequency(target.min_frequency)
     );
     let max_frequency = format!(
-        "{} [{:0.1}MHZ]",
+        "{} [{}]",
         color_head("Max Frequency", tmux),
-        target.max_frequency
+        format_frequency(target.max_frequency)
     );
     let temperature = match target.temperature {
-        Some(temperature) => format!("{} [{:0.2}c]", color_head("Temperature", tmux), temperature),
+        Some(temperature) => format!(
+            "{} [{:0.2} C]",
+            color_head("Temperature", tmux),
+            temperature
+        ),
         None => format!("{} [N/A]", color_head("Temperature", tmux)),
     };
+    let load_average = format!(
+        "{} [{:.2} {:.2} {:.2}]",
+        color_head("Load Average", tmux),
+        target.load_average.one,
+        target.load_average.five,
+        target.load_average.fifteen
+    );
+    let context_switches = format!(
+        "{} [{}]",
+        color_head("Context Switches", tmux),
+        target.context_switches
+    );
+    let processes_running = format!(
+        "{} [{}]",
+        color_head("Processes Running", tmux),
+        target.processes_running
+    );
     let usage_percentage = format!(
         "{} [{}]",
         color_head("Usage", tmux),
@@ -188,6 +237,9 @@ fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) {
                 min_frequency,
                 max_frequency,
                 temperature,
+                load_average,
+                context_switches,
+                processes_running,
                 usage_percentage,
             ],
             usage,
@@ -226,13 +278,13 @@ fn display_cpu_usage(usage: f64, tmux: bool) {
     println!("CPU {}", color(usage, tmux));
 }
 
-fn display_core_usage(usages: Vec<f64>, tmux: bool) {
-    for (i, usage) in usages.iter().enumerate() {
+fn display_core_usage(usages: Vec<(u64, f64)>, tmux: bool) {
+    for (id, usage) in usages {
         println!(
             "{}[{}] {}",
             color_head("Core", tmux),
-            color_based_on_percentage(i.to_string(), *usage, tmux, false),
-            color(*usage, tmux)
+            color_head(&id.to_string(), tmux),
+            color(usage, tmux)
         );
     }
 }

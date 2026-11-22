@@ -15,8 +15,8 @@ fn display_sys(stat: SysStat, tmux: bool) {
         color_head(&format_uptime(stat.uptime_secs), tmux),
         color_head(&stat.uptime_secs.to_string(), tmux)
     );
-    if let Some(boot_time) = stat.boot_time {
-        println!("Boot time:   {}", color_head(&boot_time.to_string(), tmux));
+    if let Some(boot_time) = stat.boot_time_display() {
+        println!("Boot time:   {}", color_head(&boot_time, tmux));
     }
 }
 

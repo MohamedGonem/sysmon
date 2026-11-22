@@ -2,6 +2,9 @@
 
 Lots of things need to be reworked.
 
+Linux core monitoring is implemented. The unchecked general goals are the
+cross-platform, GUI, and daemon work that remains.
+
 ## General Goals
 
 - [x] drop `clap` and manually parse args
@@ -10,32 +13,34 @@ Lots of things need to be reworked.
 - [ ] add `iced` (GUI) for desktop versions
 - [ ] add daemon mode to run with other tools
 
-## Core Features
+## Core Features (Linux)
 
 CPU
 ---
 - [x] model name
 - [x] vendor id
-- [x] cache size
+- [x] cache type, level and size
+- [x] flags
 - [x] physical cores count
 - [x] logical cores count
+- [x] current frequency
 - [x] min frequency
 - [x] max frequency
+- [x] governor
 - [x] temperature
 - [x] usage percentage
-- [ ] load avg 1min
-- [ ] load avg 5min
-- [ ] load avg 15min
-- [ ] context switches
-- [ ] procs running
-- [ ] boot time (btime from /proc/stat)
-- [ ] per core:
-   - [x] id
+- [x] load avg 1min
+- [x] load avg 5min
+- [x] load avg 15min
+- [x] context switches
+- [x] procs running
+- [x] per core:
+   - [x] id (stable `cpuN` id)
    - [x] usage percentage
    - [x] temperature
-   - [ ] current frequency
-   - [ ] governor
-   - [ ] online bool
+   - [x] current frequency
+   - [x] governor
+   - [x] online bool
    - [x] user
    - [x] nice
    - [x] system
@@ -51,10 +56,10 @@ MEMORY & SWAP
 -------------
 - [x] total ram
 - [x] used ram
-- [x] free ram
-- [ ] available ram
-- [ ] buffers
-- [ ] cached
+- [x] free ram (`MemFree`)
+- [x] available ram (`MemAvailable`, with `MemFree + Buffers + Cached` fallback)
+- [x] buffers
+- [x] cached (`Cached + SReclaimable - Shmem`)
 - [x] total swap
 - [x] used swap
 - [x] free swap
@@ -66,78 +71,89 @@ SYSTEM INFO
 - [x] uptime (raw seconds + formatted d/h/m/s)
 - [x] distro name (/etc/os-release)
 - [x] architecture
-- [x] boot time
+- [x] boot time (formatted local date/time)
 
 BATTERY
 -------
 - [x] status (Charging/Discharging/Full)
-- [ ] capacity percent
-- [ ] energy now
-- [x] energy now percentage
-- [ ] energy full
-- [ ] energy full design
-- [ ] power draw (watts)
-- [ ] voltage
-- [ ] cycle count
-- [ ] health percent (energy_full / energy_full_design * 100)
+- [x] capacity percent (falls back to energy/charge ratio)
+- [x] energy now (or charge now)
+- [x] energy full (or charge full)
+- [x] energy full design (or charge full design)
+- [x] power draw (watts, from `power_now` or `current_now * voltage_now`)
+- [x] voltage
+- [x] cycle count
+- [x] health percent (energy_full / energy_full_design * 100)
 
 NETWORK
 -------
-- [ ] per interface:
-   - [ ] name
-   - [ ] bytes received total
-   - [ ] bytes sent total
-   - [ ] download speed (delta)
-   - [ ] upload speed (delta)
-   - [ ] packets received
-   - [ ] packets sent
-   - [ ] errors in
-   - [ ] errors out
-   - [ ] drop in
-   - [ ] drop out
-   - [ ] is up (operstate)
-   - [ ] mac address
-   - [ ] ip address
+- [x] per interface:
+   - [x] name
+   - [x] bytes received total
+   - [x] bytes sent total
+   - [x] download speed (delta)
+   - [x] upload speed (delta)
+   - [x] packets received
+   - [x] packets sent
+   - [x] errors in
+   - [x] errors out
+   - [x] drop in
+   - [x] drop out
+   - [x] is up (IFF_UP/operstate)
+   - [x] mac address
+   - [x] ip address (IPv4 and IPv6)
 
 DISK
 ----
-- [ ] per device:
-   - [ ] name
-   - [ ] mount point
-   - [ ] filesystem type
-   - [ ] total space
-   - [ ] used space
-   - [ ] free space
-   - [ ] usage percent
-   - [ ] reads completed
-   - [ ] writes completed
-   - [ ] read speed (delta)
-   - [ ] write speed (delta)
-   - [ ] is rotational (HDD vs SSD)
+- [x] per mount:
+   - [x] device
+   - [x] mount point
+   - [x] filesystem type
+   - [x] total space
+   - [x] used space
+   - [x] free space
+   - [x] available space
+   - [x] usage percent
+- [x] per device:
+   - [x] name
+   - [x] reads completed
+   - [x] writes completed
+   - [x] bytes read
+   - [x] bytes written
+   - [x] read speed (delta)
+   - [x] write speed (delta)
+   - [x] is rotational (HDD vs SSD)
 
 PROCESSES
 ---------
-- [ ] per process:
-   - [ ] pid
-   - [ ] name
-   - [ ] state
-   - [ ] cpu usage percent (delta)
-   - [ ] memory rss
-   - [ ] memory percent
-   - [ ] virtual memory size
-   - [ ] user/owner
-   - [ ] threads count
-   - [ ] open file descriptors count
-   - [ ] command line
-   - [ ] parent pid
-   - [ ] nice value
-   - [ ] start time
+- [x] per process:
+   - [x] pid
+   - [x] name
+   - [x] state
+   - [x] cpu usage percent (delta)
+   - [x] memory rss
+   - [x] memory percent
+   - [x] virtual memory size
+   - [x] user/owner
+   - [x] threads count
+   - [x] open file descriptors count (permission-limited fields show `N/A`)
+   - [x] command line
+   - [x] parent pid
+   - [x] nice value
+   - [x] start time
 
 TEMPERATURES & FANS
 -------------------
-- [ ] cpu temperature (already done)
-- [ ] per core temperature (already done)
-- [ ] disk temperatures
-- [ ] fan speeds
-- [ ] fan labels
+- [x] cpu temperature
+- [x] per core temperature
+- [x] disk temperatures
+- [x] fan speeds
+- [x] fan labels
 
+## CLI
+
+- [x] show system, CPU, cores, memory/swap, and battery
+- [x] show network, disk, processes, and sensors
+- [x] detailed output (`-d`)
+- [x] tmux output (`-e tmux`)
+- [x] manual argument parsing, short-flag clusters, and `--help`/`--version`

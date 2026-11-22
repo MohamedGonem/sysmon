@@ -71,7 +71,7 @@ fn parses_non_numeric_field_as_zero() {
 // UsageStat::total / idle_total
 
 #[test]
-fn total_sums_all_fields() {
+fn total_excludes_guest_fields_already_in_user_and_nice() {
     let stat = UsageStat {
         user: 10,
         nice: 20,
@@ -85,7 +85,7 @@ fn total_sums_all_fields() {
         guest_nice: 100,
     };
 
-    assert_eq!(stat.total(), 550);
+    assert_eq!(stat.total(), 360);
     assert_eq!(stat.idle_total(), 90);
 }
 
@@ -209,9 +209,54 @@ cpu1 55 0 28 440 5 0 0 0 0 0
 
     let core_usages = later.core_usages_since(&earlier);
     assert_eq!(core_usages.len(), 2);
+    assert_eq!(core_usages[0].0, 0);
+    assert_eq!(core_usages[1].0, 1);
     assert!(
         core_usages
             .iter()
-            .all(|usage| (0.0..=100.0).contains(usage))
+            .all(|(_, usage)| (0.0..=100.0).contains(usage))
     );
+}
+
+#[test]
+fn parses_activity_counters_and_core_ids() {
+    let content = "\
+cpu  100 0 50 800 10 0 0 0 0 0
+cpu0 50 0 25 400 5 0 0 0 0 0
+cpu2 50 0 25 400 5 0 0 0 0 0
+ctxt 98765
+procs_running 3
+";
+    let times = CpuTimes::parse(content).expect("should parse /proc/stat");
+
+    assert_eq!(times.core_ids, vec![0, 2]);
+    assert_eq!(times.context_switches, 98765);
+    assert_eq!(times.processes_running, 3);
+}
+
+#[test]
+fn matches_cores_by_id_instead_of_position() {
+    let earlier = CpuTimes::parse(
+        "\
+cpu  100 0 50 800 10 0 0 0 0 0
+cpu0 50 0 25 400 5 0 0 0 0 0
+cpu1 50 0 25 400 5 0 0 0 0 0
+",
+    )
+    .unwrap();
+    let later = CpuTimes::parse(
+        "\
+cpu  110 0 55 880 10 0 0 0 0 0
+cpu1 55 0 28 440 5 0 0 0 0 0
+cpu2 55 0 27 440 5 0 0 0 0 0
+",
+    )
+    .unwrap();
+
+    let usages = later.core_usages_since(&earlier);
+    assert_eq!(usages.len(), 2);
+    assert_eq!(usages[0].0, 1);
+    assert_eq!(usages[1].0, 2);
+    assert!(usages[0].1 > 0.0);
+    assert_eq!(usages[1].1, 0.0);
 }

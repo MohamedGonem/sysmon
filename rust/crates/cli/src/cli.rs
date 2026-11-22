@@ -18,6 +18,10 @@ Options:
   -c, --cores      Show Core usage (or full details with -d flag)
   -m, --mem <MEM>  Show memory stats [possible values: memory, swap, all]
   -b, --bat        Show battery level and charging status
+  -n, --net        Show network stats
+  -D, --disk       Show disk usage (or full details with -d flag)
+  -p, --proc       Show process stats (or full details with -d flag)
+  -t, --sensors    Show temperatures and fans
   -e, --env <ENV>  Output format for your terminal environment [default: normal] [possible values: tmux, normal]
   -d, --detailed   Output detailed information
   -h, --help       Print help
@@ -31,6 +35,10 @@ pub struct Cli {
     pub core: bool,
     pub mem: Option<Mem>,
     pub bat: bool,
+    pub net: bool,
+    pub disk: bool,
+    pub process: bool,
+    pub sensors: bool,
     pub env: Env,
     pub detailed: bool,
 }
@@ -107,6 +115,10 @@ impl Cli {
                 "-C" | "--cpu" => cli.cpu = true,
                 "-c" | "--cores" => cli.core = true,
                 "-b" | "--bat" => cli.bat = true,
+                "-n" | "--net" => cli.net = true,
+                "-D" | "--disk" => cli.disk = true,
+                "-p" | "--proc" => cli.process = true,
+                "-t" | "--sensors" => cli.sensors = true,
                 "-d" | "--detailed" => cli.detailed = true,
                 "-e" | "--env" => {
                     cli.env = parse_env(next_value(&mut args, ENV_OPTION, ENV_VALUES)?)?;
@@ -262,6 +274,10 @@ where
             'C' => cli.cpu = true,
             'c' => cli.core = true,
             'b' => cli.bat = true,
+            'n' => cli.net = true,
+            'D' => cli.disk = true,
+            'p' => cli.process = true,
+            't' => cli.sensors = true,
             'd' => cli.detailed = true,
             'h' => return Ok(Some(ParseOutcome::Help)),
             'V' => return Ok(Some(ParseOutcome::Version)),
@@ -320,29 +336,51 @@ mod tests {
         assert!(!cli.core);
         assert_eq!(cli.mem, None);
         assert!(!cli.bat);
+        assert!(!cli.net);
+        assert!(!cli.disk);
+        assert!(!cli.process);
+        assert!(!cli.sensors);
         assert_eq!(cli.env, Env::Normal);
         assert!(!cli.detailed);
     }
 
     #[test]
     fn parses_long_flags() {
-        let cli = run(&["--sys", "--cpu", "--cores", "--bat", "--detailed"]);
+        let cli = run(&[
+            "--sys",
+            "--cpu",
+            "--cores",
+            "--bat",
+            "--net",
+            "--disk",
+            "--proc",
+            "--sensors",
+            "--detailed",
+        ]);
 
         assert!(cli.sys);
         assert!(cli.cpu);
         assert!(cli.core);
         assert!(cli.bat);
+        assert!(cli.net);
+        assert!(cli.disk);
+        assert!(cli.process);
+        assert!(cli.sensors);
         assert!(cli.detailed);
     }
 
     #[test]
     fn parses_short_flags() {
-        let cli = run(&["-S", "-C", "-c", "-b", "-d"]);
+        let cli = run(&["-S", "-C", "-c", "-b", "-n", "-D", "-p", "-t", "-d"]);
 
         assert!(cli.sys);
         assert!(cli.cpu);
         assert!(cli.core);
         assert!(cli.bat);
+        assert!(cli.net);
+        assert!(cli.disk);
+        assert!(cli.process);
+        assert!(cli.sensors);
         assert!(cli.detailed);
     }
 
@@ -356,6 +394,12 @@ mod tests {
         assert!(cli.cpu);
         assert!(cli.detailed);
         assert!(cli.bat);
+
+        let cli = run(&["-nDpt"]);
+        assert!(cli.net);
+        assert!(cli.disk);
+        assert!(cli.process);
+        assert!(cli.sensors);
     }
 
     #[test]
@@ -509,6 +553,10 @@ mod tests {
             "--cores",
             "--mem",
             "--bat",
+            "--net",
+            "--disk",
+            "--proc",
+            "--sensors",
             "--env",
             "--detailed",
             "--help",

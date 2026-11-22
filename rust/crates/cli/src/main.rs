@@ -1,7 +1,11 @@
 mod bat;
 mod cli;
 mod cpu;
+mod disk;
 mod mem;
+mod net;
+mod proc;
+mod sensors;
 mod sys;
 mod utils;
 
@@ -10,6 +14,8 @@ use std::process::ExitCode;
 use cli::{Cli, ParseOutcome};
 
 fn main() -> ExitCode {
+    restore_sigpipe();
+
     match Cli::parse_args() {
         Ok(ParseOutcome::Run(cli)) => {
             run(cli);
@@ -27,6 +33,15 @@ fn main() -> ExitCode {
             eprintln!("error: {error}\n\nFor more information, try '--help'.");
             ExitCode::from(2)
         }
+    }
+}
+
+fn restore_sigpipe() {
+    // SAFETY: setting a process-wide signal disposition to the default has no
+    // memory-safety preconditions. Rust ignores SIGPIPE by default, which turns
+    // `sysmon-cli | head` into a panic on EPIPE.
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
 }
 
@@ -57,10 +72,34 @@ fn run(cli: Cli) {
     }
 
     if cli.bat {
-        bat::print_battery(tmux);
+        bat::print_battery(tmux, cli.detailed);
     }
 
-    let no_option_selected = !cli.sys && !cli.cpu && !cli.core && cli.mem.is_none() && !cli.bat;
+    if cli.net {
+        net::print_network(tmux, cli.detailed);
+    }
+
+    if cli.disk {
+        disk::print_disks(tmux, cli.detailed);
+    }
+
+    if cli.process {
+        proc::print_processes(tmux, cli.detailed);
+    }
+
+    if cli.sensors {
+        sensors::print_sensors(tmux, cli.detailed);
+    }
+
+    let no_option_selected = !cli.sys
+        && !cli.cpu
+        && !cli.core
+        && cli.mem.is_none()
+        && !cli.bat
+        && !cli.net
+        && !cli.disk
+        && !cli.process
+        && !cli.sensors;
 
     if no_option_selected {
         println!("No option specified. Use --help for usage.")

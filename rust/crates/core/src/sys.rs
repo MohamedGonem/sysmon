@@ -65,4 +65,35 @@ impl SysStat {
             .and_then(|line| line.split_whitespace().nth(1))
             .and_then(|value| value.parse::<u64>().ok())
     }
+
+    /// Human-readable boot time in the local timezone.
+    pub fn boot_time_display(&self) -> Option<String> {
+        self.boot_time.map(format_epoch)
+    }
+}
+
+/// Format a Unix timestamp in the local timezone as `YYYY-MM-DD HH:MM:SS`.
+pub fn format_epoch(epoch: u64) -> String {
+    let timestamp = epoch as libc::time_t;
+    let mut local = std::mem::MaybeUninit::<libc::tm>::uninit();
+
+    // SAFETY: `localtime_r` writes into the provided `tm` and the pointer is valid
+    // for the duration of the call. It does not retain the pointer.
+    let result = unsafe { libc::localtime_r(&timestamp, local.as_mut_ptr()) };
+    if result.is_null() {
+        return epoch.to_string();
+    }
+
+    // SAFETY: a non-null return from `localtime_r` means `local` was initialised.
+    let local = unsafe { local.assume_init() };
+
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+        local.tm_year + 1900,
+        local.tm_mon + 1,
+        local.tm_mday,
+        local.tm_hour,
+        local.tm_min,
+        local.tm_sec
+    )
 }
