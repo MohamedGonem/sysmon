@@ -21,8 +21,12 @@ mv sysmon-cli "$HOME/.local/bin/"
 ```bash
 git clone https://github.com/MohamedGonem/sysmon
 cd sysmon/rust
-# use --features "feature_a,feature_b" to specifiy features as well
-cargo install --path crates/sysmon-cli
+cargo install --path crates/cli       # cli version
+cargo install --path crates/daemon    # daemon
+cargo install --path crates/gui       # gui
+
+# enable tmux output for the CLI
+cargo install --path crates/cli --features tmux
 ```
 
 > [!IMPORTANT]

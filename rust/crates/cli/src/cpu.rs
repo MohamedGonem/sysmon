@@ -1,9 +1,52 @@
-use super::types::{CPUStat, CoreStat, UsageStat};
-use crate::utils::{color, color_based_on_percentage, color_head};
+use std::time::Duration;
 
-// !!! Should implement traits instead of functions
-// Returns display lines for a given usagestat stuct based on mode weather tmux or normal
-pub fn color_usagestat(target: UsageStat, tmux: bool) -> Vec<String> {
+use crate::utils::{color, color_based_on_percentage, color_head};
+use sysmon_core::cpu::CpuTimes;
+use sysmon_core::types::{CPUStat, CoreStat, UsageStat};
+
+/// Sampling window used by the CLI. Core exposes the primitives; the frontend chooses the policy.
+const SAMPLE_WINDOW: Duration = Duration::from_secs(1);
+
+pub fn print_cores_stats(tmux: bool) {
+    match CoreStat::sample(SAMPLE_WINDOW) {
+        Some(cores) => display_cores_stats(cores, tmux),
+        None => eprintln!("error: could not read CPU statistics"),
+    }
+}
+
+pub fn print_cpu_stats(tmux: bool, cores: bool) {
+    match CPUStat::sample(SAMPLE_WINDOW, cores) {
+        Some(cpu) => display_cpu_stats(cpu, tmux, cores),
+        None => eprintln!("error: could not read CPU statistics"),
+    }
+}
+
+pub fn print_cpu_usage(tmux: bool) {
+    match CpuTimes::sample_usage(SAMPLE_WINDOW) {
+        Some(usage) => display_cpu_usage(usage, tmux),
+        None => eprintln!("error: could not read CPU statistics"),
+    }
+}
+
+pub fn print_core_usage(tmux: bool) {
+    match CpuTimes::sample_core_usages(SAMPLE_WINDOW) {
+        Some(usages) => display_core_usage(usages, tmux),
+        None => eprintln!("error: could not read CPU statistics"),
+    }
+}
+
+pub fn print_cpu_usage_and_cores(tmux: bool) {
+    match CpuTimes::sample_usage_and_cores(SAMPLE_WINDOW) {
+        Some((usage, cores)) => {
+            display_cpu_usage(usage, tmux);
+            display_core_usage(cores, tmux);
+        }
+        None => eprintln!("error: could not read CPU statistics"),
+    }
+}
+
+// Returns display lines for a given UsageStat struct based on whether the output is for tmux.
+fn color_usagestat(target: UsageStat, tmux: bool) -> Vec<String> {
     let formatter =
         |target: u64, text: &str| format!("\t{} {}Tick", color_head(text, tmux), target);
     let user = formatter(target.user, "User");
@@ -22,18 +65,22 @@ pub fn color_usagestat(target: UsageStat, tmux: bool) -> Vec<String> {
     ]
 }
 
-// Returns display lines for a giving corestat struct based on mode weather tmux or normal
-pub fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String> {
+// Returns display lines for a given CoreStat struct based on whether the output is for tmux.
+fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String> {
     let core_id = format!(
         "{}[{}]",
         color_head("\tCore", tmux),
         color_based_on_percentage(target.id.to_string(), target.usage_percentage, tmux, false)
     );
     let core_temperature = match target.temperature {
-        Some(t) => format!("\t\t{} {:0.1}c", color_head("Temperature", tmux), t),
+        Some(temperature) => format!(
+            "\t\t{} {:0.1}c",
+            color_head("Temperature", tmux),
+            temperature
+        ),
         None => format!("\t\t{} N/A", color_head("Temperature", tmux)),
     };
-    let core_usage_percentage = format!("\t[{}]", color(target.usage_percentage.to_owned(), tmux));
+    let core_usage_percentage = format!("\t[{}]", color(target.usage_percentage, tmux));
 
     let core_usage = color_usagestat(target.usage, tmux);
     if !newline {
@@ -46,7 +93,7 @@ pub fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String
         [core_stat, core_usage].concat()
     } else {
         let core_stat = vec![
-            format!("{}", "-".repeat(10)),
+            "-".repeat(10),
             core_id,
             core_temperature,
             format!("\t\t{}", "-".repeat(10)),
@@ -56,32 +103,32 @@ pub fn color_corestat(target: CoreStat, tmux: bool, newline: bool) -> Vec<String
 }
 
 fn format_cache_levels(target: Vec<[String; 3]>, tmux: bool) -> Vec<String> {
-    let mut result = vec![format!("{}", color_head("Cache Info", tmux))];
+    let mut result = vec![color_head("Cache Info", tmux)];
     result.extend(target.iter().flat_map(|cache| {
         let [cache_type, cache_level, cache_size] = cache;
-        let mut v = vec![
+        let mut lines = vec![
             format!("\t{} [{}]", color_head("[Type]", tmux), cache_type),
             format!("\t{} [{}]", color_head("[Level]", tmux), cache_level),
             format!("\t{} [{}]", color_head("[Size]", tmux), cache_size),
         ];
-        v.push("\t-----".to_string());
-        v
+        lines.push("\t-----".to_string());
+        lines
     }));
     result
 }
 
-fn format_flags(target: Option<Vec<String>>, tmux: bool) -> Vec<String> {
-    match target {
-        Some(f) => {
-            let mut result = vec![format!("{}", color_head("Flags", tmux))];
-            result.extend(f.iter().map(|flag| format!("\t[{}]", flag)));
-            result
-        }
-        None => vec![],
+fn format_flags(target: Vec<String>, tmux: bool) -> Vec<String> {
+    if target.is_empty() {
+        return Vec::new();
     }
+
+    let mut result = vec![color_head("Flags", tmux)];
+    result.extend(target.iter().map(|flag| format!("\t[{}]", flag)));
+    result
 }
-// Returns display lines for a given cpustat struct based on mode weather tmux or normal
-pub fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) {
+
+// Returns display lines for a given CPUStat struct based on whether the output is for tmux.
+fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) {
     let model_name = format!("{} {}", color_head("Model", tmux), target.model_name);
     let vendor_id = format!("{} {}", color_head("Vendor Id", tmux), target.vendor_id);
     let governor = format!("{} {}", color_head("Governor", tmux), target.governor);
@@ -112,11 +159,10 @@ pub fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) 
         color_head("Max Frequency", tmux),
         target.max_frequency
     );
-    let temperature = format!(
-        "{} [{:0.2}c]",
-        color_head("Temperature", tmux),
-        target.temperature
-    );
+    let temperature = match target.temperature {
+        Some(temperature) => format!("{} [{:0.2}c]", color_head("Temperature", tmux), temperature),
+        None => format!("{} [N/A]", color_head("Temperature", tmux)),
+    };
     let usage_percentage = format!(
         "{} [{}]",
         color_head("Usage", tmux),
@@ -127,7 +173,7 @@ pub fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) 
     let core_stats: Vec<_> = target
         .core_stats
         .into_iter()
-        .flat_map(|c| color_corestat(c, tmux, true))
+        .flat_map(|core| color_corestat(core, tmux, true))
         .collect();
 
     (
@@ -150,55 +196,43 @@ pub fn color_cpustat(target: CPUStat, tmux: bool) -> (Vec<String>, Vec<String>) 
         core_stats,
     )
 }
-// -------------------------------------------
-// end of display struct type
-// -------------------------------------------
 
-// ! need comment
-pub fn display_cores_stats(cores: Vec<CoreStat>, tmux: bool) {
+fn display_cores_stats(cores: Vec<CoreStat>, tmux: bool) {
     let len = cores.len();
     println!("{}\n{}", color_head("[Cores]", tmux), "-".repeat(35));
     for (i, core) in cores.into_iter().enumerate() {
-        let colored_core = color_corestat(core, tmux, false);
-        for stat in colored_core {
-            println!("{}", stat);
+        for stat in color_corestat(core, tmux, false) {
+            println!("{stat}");
         }
-        if i < len - 1 {
+        if i + 1 < len {
             println!("{}", "-".repeat(25));
         }
     }
 }
 
-// ! need comment
-pub fn display_cpu_stats(cpu: CPUStat, tmux: bool, show_cores: bool) {
+fn display_cpu_stats(cpu: CPUStat, tmux: bool, show_cores: bool) {
     let (cpu, cores) = color_cpustat(cpu, tmux);
-    for stat in cpu.into_iter() {
+    for stat in cpu {
         println!("{stat}");
     }
     if show_cores {
-        for core_stat in cores.into_iter() {
-            println!("{core_stat}")
+        for core_stat in cores {
+            println!("{core_stat}");
         }
     }
 }
 
-// ! need comment
-pub fn display_cpu_usage(usage: f64, tmux: bool) {
+fn display_cpu_usage(usage: f64, tmux: bool) {
     println!("CPU {}", color(usage, tmux));
 }
 
-// ! need comment
-pub fn display_core_usage(usages: Vec<f64>, tmux: bool) {
+fn display_core_usage(usages: Vec<f64>, tmux: bool) {
     for (i, usage) in usages.iter().enumerate() {
         println!(
             "{}[{}] {}",
             color_head("Core", tmux),
-            color_based_on_percentage(i.to_string(), usage.to_owned(), tmux, false),
-            color(usage.to_owned(), tmux)
+            color_based_on_percentage(i.to_string(), *usage, tmux, false),
+            color(*usage, tmux)
         );
     }
 }
-
-// -------------------------------
-// end of display helper functions
-// -------------------------------

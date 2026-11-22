@@ -1,28 +1,72 @@
 mod color;
 
-use std::f64;
-
 pub fn color(percentage: f64, tmux: bool) -> String {
     if tmux {
-        match percentage as u64 {
-            0..=10 => color::tmux::green_bold(&format!("{:0.1}%", percentage)),
-            11..=30 => color::tmux::green(&format!("{:0.1}%", percentage)),
-            31..=50 => color::tmux::yellow(&format!("{:0.1}%", percentage)),
-            51..=75 => color::tmux::yellow_bold(&format!("{:0.1}%", percentage)),
-            76..=90 => color::tmux::red(&format!("{:0.1}%", percentage)),
-            _ => color::tmux::bright_red(&format!("{:0.1}%", percentage)),
+        #[cfg(feature = "tmux")]
+        {
+            match percentage as u64 {
+                0..=10 => color::tmux::green_bold(&format!("{:.1}%", percentage)),
+                11..=30 => color::tmux::green(&format!("{:.1}%", percentage)),
+                31..=50 => color::tmux::yellow(&format!("{:.1}%", percentage)),
+                51..=75 => color::tmux::yellow_bold(&format!("{:.1}%", percentage)),
+                76..=90 => color::tmux::red(&format!("{:.1}%", percentage)),
+                _ => color::tmux::bright_red(&format!("{:.1}%", percentage)),
+            }
+        }
+
+        #[cfg(not(feature = "tmux"))]
+        {
+            "tmux is not loaded".to_string()
         }
     } else {
         match percentage as u64 {
-            0..=10 => color::green_bold(&format!("{:0.1}%", percentage)),
-            11..=30 => color::green(&format!("{:0.1}%", percentage)),
-            31..=50 => color::yellow(&format!("{:0.1}%", percentage)),
-            51..=75 => color::yellow_bold(&format!("{:0.1}%", percentage)),
-            76..=90 => color::red(&format!("{:0.1}%", percentage)),
-            _ => color::bright_red(&format!("{:0.1}%", percentage)),
+            0..=10 => color::green_bold(&format!("{:.1}%", percentage)),
+            11..=30 => color::green(&format!("{:.1}%", percentage)),
+            31..=50 => color::yellow(&format!("{:.1}%", percentage)),
+            51..=75 => color::yellow_bold(&format!("{:.1}%", percentage)),
+            76..=90 => color::red(&format!("{:.1}%", percentage)),
+            _ => color::bright_red(&format!("{:.1}%", percentage)),
         }
     }
 }
+
+macro_rules! define_tmux_color {
+    ($name:ident, $plain:path, $tmux:path) => {
+        fn $name(text: &str) -> String {
+            #[cfg(feature = "tmux")]
+            {
+                $tmux(text)
+            }
+
+            #[cfg(not(feature = "tmux"))]
+            {
+                $plain(text)
+            }
+        }
+    };
+}
+
+define_tmux_color!(tmux_green_bold, color::green_bold, color::tmux::green_bold);
+define_tmux_color!(tmux_green, color::green, color::tmux::green);
+define_tmux_color!(tmux_yellow, color::yellow, color::tmux::yellow);
+define_tmux_color!(
+    tmux_yellow_bold,
+    color::yellow_bold,
+    color::tmux::yellow_bold
+);
+define_tmux_color!(tmux_red, color::red, color::tmux::red);
+define_tmux_color!(tmux_red_bold, color::red_bold, color::tmux::red_bold);
+define_tmux_color!(
+    tmux_bright_blue_bold,
+    color::bright_blue_bold,
+    color::tmux::bright_blue_bold
+);
+define_tmux_color!(
+    tmux_bright_green_bold,
+    color::bright_green_bold,
+    color::tmux::bright_green_bold
+);
+define_tmux_color!(tmux_white_bold, color::white_bold, color::tmux::white_bold);
 
 pub fn color_based_on_percentage(
     text: String,
@@ -30,106 +74,132 @@ pub fn color_based_on_percentage(
     tmux: bool,
     reversed: bool,
 ) -> String {
-    let true_percentage: f64 = if reversed { -percentage } else { percentage };
-    if tmux {
-        match true_percentage as i64 {
-            0..=10 | -100..=-91 => color::tmux::green_bold(&text),
-            11..=30 | -90..=-76 => color::tmux::green(&text),
-            31..=50 | -75..=-51 => color::tmux::yellow(&text),
-            51..=75 | -50..=-31 => color::tmux::yellow_bold(&text),
-            76..=90 | -30..=-11 => color::tmux::red(&text),
-            91..=100 | -10..=-1 => color::tmux::red_bold(&text),
-            _ => "".to_string(),
+    let true_percentage = if reversed { -percentage } else { percentage };
+
+    match true_percentage as i64 {
+        0..=10 | -100..=-91 => {
+            if tmux {
+                tmux_green_bold(&text)
+            } else {
+                color::green_bold(&text)
+            }
         }
-    } else {
-        match true_percentage as i64 {
-            0..=10 | -100..=-91 => color::green_bold(&text),
-            11..=30 | -90..=-76 => color::green(&text),
-            31..=50 | -75..=-51 => color::yellow(&text),
-            51..=75 | -50..=-31 => color::yellow_bold(&text),
-            76..=90 | -30..=-11 => color::red(&text),
-            91..=100 | -10..=-1 => color::red_bold(&text),
-            _ => "".to_string(),
+        11..=30 | -90..=-76 => {
+            if tmux {
+                tmux_green(&text)
+            } else {
+                color::green(&text)
+            }
         }
+        31..=50 | -75..=-51 => {
+            if tmux {
+                tmux_yellow(&text)
+            } else {
+                color::yellow(&text)
+            }
+        }
+        51..=75 | -50..=-31 => {
+            if tmux {
+                tmux_yellow_bold(&text)
+            } else {
+                color::yellow_bold(&text)
+            }
+        }
+        76..=90 | -30..=-11 => {
+            if tmux {
+                tmux_red(&text)
+            } else {
+                color::red(&text)
+            }
+        }
+        91..=100 | -10..=-1 => {
+            if tmux {
+                tmux_red_bold(&text)
+            } else {
+                color::red_bold(&text)
+            }
+        }
+        _ => String::new(),
     }
 }
 
-#[cfg(feature = "bat")]
-pub fn color_bat(percentage: u64, tmux: bool, state: String, short_state: String) -> [String; 3] {
-    let colored_state = |state: String, tmux: bool, short_state: String| -> String {
-        if tmux {
-            match state.as_str() {
-                "Charging" => color::tmux::bright_blue_bold(&short_state),
-                "Discharging" => color::tmux::yellow(&short_state),
-                "Full" => color::tmux::bright_green_bold(&short_state),
-                "Unknown" => color::tmux::white_bold(&short_state),
-                _ => color::tmux::white_bold(&short_state),
+pub fn color_bat(percentage: u64, tmux: bool, state: &str) -> [String; 3] {
+    let short_state = state.get(..3).unwrap_or(state);
+
+    let colored_state = if tmux {
+        match state {
+            "Charging" => tmux_bright_blue_bold(short_state),
+            "Discharging" => tmux_yellow(short_state),
+            "Full" => tmux_bright_green_bold(short_state),
+            "Unknown" => tmux_white_bold(short_state),
+            _ => tmux_white_bold(short_state),
+        }
+    } else {
+        let left_bracket = color::white_bold("[");
+        let right_bracket = color::white_bold("]");
+
+        let colored = match state {
+            "Charging" => color::bright_blue_bold(short_state),
+            "Discharging" => color::yellow(short_state),
+            "Full" => color::bright_green_bold(short_state),
+            "Unknown" => color::white_bold(short_state),
+            _ => color::white_bold(short_state),
+        };
+
+        format!("{}{}{}", left_bracket, colored, right_bracket)
+    };
+
+    let colored_percentage = match percentage {
+        86..=100 => {
+            if tmux {
+                format!("{}%", tmux_green_bold(&percentage.to_string()))
+            } else {
+                format!("{}%", color::green_bold(&percentage.to_string()))
             }
-        } else {
-            let right_par: String = color::white_bold("[");
-            let left_par: String = color::white_bold("]");
-            match state.as_str() {
-                "Charging" => format!(
-                    "{}{}{}",
-                    right_par,
-                    color::bright_blue_bold(&short_state),
-                    left_par
-                ),
-                "Discharging" => {
-                    format!("{}{}{}", right_par, color::yellow(&short_state), left_par)
-                }
-                "Full" => format!(
-                    "{}{}{}",
-                    right_par,
-                    color::bright_green_bold(&short_state),
-                    left_par
-                ),
-                "Unknown" => format!(
-                    "{}{}{}",
-                    right_par,
-                    color::white_bold(&short_state),
-                    left_par
-                ),
-                _ => format!(
-                    "{}{}{}",
-                    right_par,
-                    color::white_bold(&short_state),
-                    left_par
-                ),
+        }
+        71..=85 => {
+            if tmux {
+                format!("{}%", tmux_green(&percentage.to_string()))
+            } else {
+                format!("{}%", color::green(&percentage.to_string()))
+            }
+        }
+        46..=70 => {
+            if tmux {
+                format!("{}%", tmux_yellow(&percentage.to_string()))
+            } else {
+                format!("{}%", color::yellow(&percentage.to_string()))
+            }
+        }
+        21..=45 => {
+            if tmux {
+                format!("{}%", tmux_yellow_bold(&percentage.to_string()))
+            } else {
+                format!("{}%", color::yellow_bold(&percentage.to_string()))
+            }
+        }
+        11..=20 => {
+            if tmux {
+                format!("{}%", tmux_red(&percentage.to_string()))
+            } else {
+                format!("{}%", color::red(&percentage.to_string()))
+            }
+        }
+        _ => {
+            if tmux {
+                format!("{}%", tmux_red_bold(&percentage.to_string()))
+            } else {
+                format!("{}%", color::red_bold(&percentage.to_string()))
             }
         }
     };
-    let state = colored_state(state, tmux, short_state);
 
-    let colored_percentage = |percentage: u64, tmux: bool| -> String {
-        if tmux {
-            match percentage {
-                86..=100 => format!("{}%", color::tmux::green_bold(&percentage.to_string())),
-                71..=85 => format!("{}%", color::tmux::green(&percentage.to_string())),
-                46..=70 => format!("{}%", color::tmux::yellow(&percentage.to_string())),
-                21..=45 => format!("{}%", color::tmux::yellow_bold(&percentage.to_string())),
-                11..=20 => format!("{}%", color::tmux::red(&percentage.to_string())),
-                _ => format!("{}%", color::tmux::red_bold(&percentage.to_string())),
-            }
-        } else {
-            match percentage {
-                86..=100 => format!("{}%", color::green_bold(&percentage.to_string())),
-                71..=85 => format!("{}%", color::green(&percentage.to_string())),
-                46..=70 => format!("{}%", color::yellow(&percentage.to_string())),
-                21..=45 => format!("{}%", color::yellow_bold(&percentage.to_string())),
-                11..=20 => format!("{}%", color::red(&percentage.to_string())),
-                _ => format!("{}%", color::red_bold(&percentage.to_string())),
-            }
-        }
-    };
-
-    let percentage = colored_percentage(percentage, tmux);
-    [color_head("Bat", tmux), state, percentage]
+    [color_head("Bat", tmux), colored_state, colored_percentage]
 }
 
 pub fn color_head(text: &str, tmux: bool) -> String {
     if tmux {
-        color::tmux::white_bold(text)
+        tmux_white_bold(text)
     } else {
         color::white_bold(text)
     }

@@ -4,11 +4,11 @@ members = ["crates/*"]
 
 [workspace.package]
 edition = "2024"
-version = "0.1.4"
+version = "0.1.5"
 license = "MIT"
 
 [workspace.dependencies]
-sysmon-core = { path = "crates/core" }
+rsysmon-core = { path = "crates/core", version = "0.1.5" }
 
 [profile.dev]
 opt-level = 2
