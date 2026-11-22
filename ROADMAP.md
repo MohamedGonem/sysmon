@@ -4,7 +4,7 @@ Lots of things need to be reworked.
 
 ## General Goals
 
-- [ ] drop `clap` and manually parse args
+- [x] drop `clap` and manually parse args
 - [ ] add support for `Windows` and `macOS` (CLI)
 - [ ] add support for `Android` and `IOS` via `kotlin` and `compose` (GUI)
 - [ ] add `iced` (GUI) for desktop versions

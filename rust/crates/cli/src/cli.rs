@@ -1,47 +1,150 @@
-use clap::{Parser, ValueEnum};
+use std::ffi::OsString;
+use std::fmt;
+use std::str::FromStr;
 
-#[derive(Parser)]
-#[command(name = "SysMon")]
-#[command(version = "0.1")]
-#[command(about = "Personal system monitor tool", long_about = None)]
+const MEM_OPTION: &str = "--mem <MEM>";
+const MEM_VALUES: &str = "memory, swap, all";
+const ENV_OPTION: &str = "--env <ENV>";
+const ENV_VALUES: &str = "tmux, normal";
+
+pub const HELP: &str = "\
+Personal system monitor tool
+
+Usage: sysmon-cli [OPTIONS]
+
+Options:
+  -S, --sys        Show system information
+  -C, --cpu        Show CPU usage (or full details with -d flag)
+  -c, --cores      Show Core usage (or full details with -d flag)
+  -m, --mem <MEM>  Show memory stats [possible values: memory, swap, all]
+  -b, --bat        Show battery level and charging status
+  -e, --env <ENV>  Output format for your terminal environment [default: normal] [possible values: tmux, normal]
+  -d, --detailed   Output detailed information
+  -h, --help       Print help
+  -V, --version    Print version
+";
+
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct Cli {
-    ///Show system information
-    #[arg(long = "sys", short = 'S')]
     pub sys: bool,
-
-    ///Show CPU usage (or full details with -d flag)
-    #[arg(long = "cpu", short = 'C')]
     pub cpu: bool,
-
-    ///Show Core usage (or full details with -d flag)
-    #[arg(long = "cores", short = 'c')]
     pub core: bool,
-
-    ///Show memory stats
-    #[arg(long = "mem", short = 'm')]
     pub mem: Option<Mem>,
-
-    ///Show battery level and charging status
-    #[arg(long = "bat", short = 'b')]
     pub bat: bool,
-
-    ///Output format for your terminal environment
-    #[arg(long = "env", short = 'e', default_value_t = Env::Normal)]
     pub env: Env,
-
-    ///Output detailed information
-    #[arg(long = "detailed", short = 'd', default_value_t = false)]
     pub detailed: bool,
 }
 
-impl Cli {
-    /// Parse the command line arguments.
-    pub fn parse_args() -> Self {
-        Self::parse()
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParseOutcome {
+    Run(Cli),
+    Help,
+    Version,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ParseError {
+    UnexpectedArgument(String),
+    MissingValue {
+        option: &'static str,
+        possible: &'static str,
+    },
+    InvalidValue {
+        option: &'static str,
+        value: String,
+        possible: &'static str,
+    },
+    InvalidUtf8,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnexpectedArgument(argument) => {
+                write!(f, "unexpected argument '{argument}' found")
+            }
+            Self::MissingValue { option, possible } => write!(
+                f,
+                "a value is required for '{option}' but none was supplied\n  [possible values: {possible}]"
+            ),
+            Self::InvalidValue {
+                option,
+                value,
+                possible,
+            } => write!(
+                f,
+                "invalid value '{value}' for '{option}'\n  [possible values: {possible}]"
+            ),
+            Self::InvalidUtf8 => write!(f, "arguments must be valid UTF-8"),
+        }
     }
 }
 
-#[derive(Clone, Copy, ValueEnum)]
+impl Cli {
+    /// Parse the process arguments.
+    pub fn parse_args() -> Result<ParseOutcome, ParseError> {
+        Self::parse_from(std::env::args_os().skip(1))
+    }
+
+    /// Parse arguments from any iterator of OS strings.
+    pub fn parse_from<I, S>(args: I) -> Result<ParseOutcome, ParseError>
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<OsString>,
+    {
+        let mut cli = Self::default();
+        let mut args = args.into_iter().map(Into::into);
+
+        while let Some(argument) = args.next() {
+            let argument = argument
+                .into_string()
+                .map_err(|_| ParseError::InvalidUtf8)?;
+
+            match argument.as_str() {
+                "-h" | "--help" => return Ok(ParseOutcome::Help),
+                "-V" | "--version" => return Ok(ParseOutcome::Version),
+                "-S" | "--sys" => cli.sys = true,
+                "-C" | "--cpu" => cli.cpu = true,
+                "-c" | "--cores" => cli.core = true,
+                "-b" | "--bat" => cli.bat = true,
+                "-d" | "--detailed" => cli.detailed = true,
+                "-e" | "--env" => {
+                    cli.env = parse_env(next_value(&mut args, ENV_OPTION, ENV_VALUES)?)?;
+                }
+                "-m" | "--mem" => {
+                    cli.mem = Some(parse_mem(next_value(&mut args, MEM_OPTION, MEM_VALUES)?)?);
+                }
+                "--" => {
+                    if let Some(extra) = args.next() {
+                        return Err(ParseError::UnexpectedArgument(
+                            extra.to_string_lossy().into_owned(),
+                        ));
+                    }
+                }
+                _ => {
+                    if let Some(value) = argument.strip_prefix("--env=") {
+                        cli.env = parse_env(inline_value(value, ENV_OPTION, ENV_VALUES)?)?;
+                    } else if let Some(value) = argument.strip_prefix("--mem=") {
+                        cli.mem = Some(parse_mem(inline_value(value, MEM_OPTION, MEM_VALUES)?)?);
+                    } else if let Some(cluster) = argument
+                        .strip_prefix('-')
+                        .filter(|rest| !rest.is_empty() && !rest.starts_with('-'))
+                    {
+                        if let Some(outcome) = parse_short_cluster(cluster, &mut cli, &mut args)? {
+                            return Ok(outcome);
+                        }
+                    } else {
+                        return Err(ParseError::UnexpectedArgument(argument));
+                    }
+                }
+            }
+        }
+
+        Ok(ParseOutcome::Run(cli))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mem {
     Memory,
     Swap,
@@ -58,9 +161,23 @@ impl Mem {
     }
 }
 
-#[derive(Clone, Copy, ValueEnum)]
+impl FromStr for Mem {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "memory" => Ok(Self::Memory),
+            "swap" => Ok(Self::Swap),
+            "all" => Ok(Self::All),
+            _ => Err(()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Env {
     Tmux,
+    #[default]
     Normal,
 }
 
@@ -70,17 +187,334 @@ impl Env {
     }
 }
 
-impl std::fmt::Display for Env {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Tmux => write!(f, "tmux"),
-            Self::Normal => write!(f, "normal"),
+impl FromStr for Env {
+    type Err = ();
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "tmux" => Ok(Self::Tmux),
+            "normal" => Ok(Self::Normal),
+            _ => Err(()),
         }
     }
 }
 
-impl std::fmt::Display for Mem {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+fn parse_mem(value: String) -> Result<Mem, ParseError> {
+    match value.parse::<Mem>() {
+        Ok(mem) => Ok(mem),
+        Err(()) => Err(ParseError::InvalidValue {
+            option: MEM_OPTION,
+            value,
+            possible: MEM_VALUES,
+        }),
+    }
+}
+
+fn parse_env(value: String) -> Result<Env, ParseError> {
+    match value.parse::<Env>() {
+        Ok(env) => Ok(env),
+        Err(()) => Err(ParseError::InvalidValue {
+            option: ENV_OPTION,
+            value,
+            possible: ENV_VALUES,
+        }),
+    }
+}
+
+fn next_value<I>(
+    args: &mut I,
+    option: &'static str,
+    possible: &'static str,
+) -> Result<String, ParseError>
+where
+    I: Iterator<Item = OsString>,
+{
+    let value = args
+        .next()
+        .ok_or(ParseError::MissingValue { option, possible })?;
+
+    value.into_string().map_err(|_| ParseError::InvalidUtf8)
+}
+
+fn inline_value(
+    value: &str,
+    option: &'static str,
+    possible: &'static str,
+) -> Result<String, ParseError> {
+    if value.is_empty() {
+        Err(ParseError::MissingValue { option, possible })
+    } else {
+        Ok(value.to_string())
+    }
+}
+
+fn parse_short_cluster<I>(
+    cluster: &str,
+    cli: &mut Cli,
+    args: &mut I,
+) -> Result<Option<ParseOutcome>, ParseError>
+where
+    I: Iterator<Item = OsString>,
+{
+    for (index, short) in cluster.char_indices() {
+        match short {
+            'S' => cli.sys = true,
+            'C' => cli.cpu = true,
+            'c' => cli.core = true,
+            'b' => cli.bat = true,
+            'd' => cli.detailed = true,
+            'h' => return Ok(Some(ParseOutcome::Help)),
+            'V' => return Ok(Some(ParseOutcome::Version)),
+            'e' | 'm' => {
+                let (option, possible) = if short == 'e' {
+                    (ENV_OPTION, ENV_VALUES)
+                } else {
+                    (MEM_OPTION, MEM_VALUES)
+                };
+
+                let rest = &cluster[index + short.len_utf8()..];
+                let value = if rest.is_empty() {
+                    next_value(args, option, possible)?
+                } else if let Some(value) = rest.strip_prefix('=') {
+                    inline_value(value, option, possible)?
+                } else {
+                    rest.to_string()
+                };
+
+                if short == 'e' {
+                    cli.env = parse_env(value)?;
+                } else {
+                    cli.mem = Some(parse_mem(value)?);
+                }
+
+                return Ok(None);
+            }
+            _ => return Err(ParseError::UnexpectedArgument(format!("-{short}"))),
+        }
+    }
+
+    Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(args: &[&str]) -> Result<ParseOutcome, ParseError> {
+        Cli::parse_from(args.iter().copied())
+    }
+
+    fn run(args: &[&str]) -> Cli {
+        match parse(args) {
+            Ok(ParseOutcome::Run(cli)) => cli,
+            other => panic!("expected run, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn defaults_match_previous_behavior() {
+        let cli = run(&[]);
+
+        assert!(!cli.sys);
+        assert!(!cli.cpu);
+        assert!(!cli.core);
+        assert_eq!(cli.mem, None);
+        assert!(!cli.bat);
+        assert_eq!(cli.env, Env::Normal);
+        assert!(!cli.detailed);
+    }
+
+    #[test]
+    fn parses_long_flags() {
+        let cli = run(&["--sys", "--cpu", "--cores", "--bat", "--detailed"]);
+
+        assert!(cli.sys);
+        assert!(cli.cpu);
+        assert!(cli.core);
+        assert!(cli.bat);
+        assert!(cli.detailed);
+    }
+
+    #[test]
+    fn parses_short_flags() {
+        let cli = run(&["-S", "-C", "-c", "-b", "-d"]);
+
+        assert!(cli.sys);
+        assert!(cli.cpu);
+        assert!(cli.core);
+        assert!(cli.bat);
+        assert!(cli.detailed);
+    }
+
+    #[test]
+    fn parses_short_flag_clusters() {
+        let cli = run(&["-SC"]);
+        assert!(cli.sys);
+        assert!(cli.cpu);
+
+        let cli = run(&["-Cdb"]);
+        assert!(cli.cpu);
+        assert!(cli.detailed);
+        assert!(cli.bat);
+    }
+
+    #[test]
+    fn parses_mem_in_every_supported_form() {
+        for args in [
+            &["--mem", "swap"][..],
+            &["--mem=swap"][..],
+            &["-m", "swap"][..],
+            &["-mswap"][..],
+            &["-m=swap"][..],
+        ] {
+            assert_eq!(run(args).mem, Some(Mem::Swap), "{args:?}");
+        }
+    }
+
+    #[test]
+    fn parses_env_in_every_supported_form() {
+        for args in [
+            &["--env", "tmux"][..],
+            &["--env=tmux"][..],
+            &["-e", "tmux"][..],
+            &["-etmux"][..],
+            &["-e=tmux"][..],
+        ] {
+            assert_eq!(run(args).env, Env::Tmux, "{args:?}");
+        }
+    }
+
+    #[test]
+    fn later_values_override_earlier_ones() {
+        let cli = run(&["--mem", "swap", "--mem", "all"]);
+
+        assert_eq!(cli.mem, Some(Mem::All));
+    }
+
+    #[test]
+    fn help_and_version_short_circuit() {
+        assert_eq!(parse(&["--help"]), Ok(ParseOutcome::Help));
+        assert_eq!(parse(&["-h"]), Ok(ParseOutcome::Help));
+        assert_eq!(parse(&["-Sh"]), Ok(ParseOutcome::Help));
+        assert_eq!(parse(&["-h", "--cpu"]), Ok(ParseOutcome::Help));
+
+        assert_eq!(parse(&["--version"]), Ok(ParseOutcome::Version));
+        assert_eq!(parse(&["-V"]), Ok(ParseOutcome::Version));
+        assert_eq!(parse(&["-SV"]), Ok(ParseOutcome::Version));
+    }
+
+    #[test]
+    fn missing_values_are_reported() {
+        assert_eq!(
+            parse(&["--mem"]),
+            Err(ParseError::MissingValue {
+                option: MEM_OPTION,
+                possible: MEM_VALUES,
+            })
+        );
+        assert_eq!(
+            parse(&["--mem="]),
+            Err(ParseError::MissingValue {
+                option: MEM_OPTION,
+                possible: MEM_VALUES,
+            })
+        );
+        assert_eq!(
+            parse(&["-m="]),
+            Err(ParseError::MissingValue {
+                option: MEM_OPTION,
+                possible: MEM_VALUES,
+            })
+        );
+        assert_eq!(
+            parse(&["--env"]),
+            Err(ParseError::MissingValue {
+                option: ENV_OPTION,
+                possible: ENV_VALUES,
+            })
+        );
+        assert_eq!(
+            parse(&["--env="]),
+            Err(ParseError::MissingValue {
+                option: ENV_OPTION,
+                possible: ENV_VALUES,
+            })
+        );
+    }
+
+    #[test]
+    fn invalid_values_are_reported() {
+        assert_eq!(
+            parse(&["--mem", "nope"]),
+            Err(ParseError::InvalidValue {
+                option: MEM_OPTION,
+                value: "nope".to_string(),
+                possible: MEM_VALUES,
+            })
+        );
+        assert_eq!(
+            parse(&["--env", "nope"]),
+            Err(ParseError::InvalidValue {
+                option: ENV_OPTION,
+                value: "nope".to_string(),
+                possible: ENV_VALUES,
+            })
+        );
+    }
+
+    #[test]
+    fn unexpected_arguments_are_reported() {
+        assert!(matches!(
+            parse(&["--nope"]),
+            Err(ParseError::UnexpectedArgument(_))
+        ));
+        assert!(matches!(
+            parse(&["extra"]),
+            Err(ParseError::UnexpectedArgument(_))
+        ));
+        assert!(matches!(
+            parse(&["-x"]),
+            Err(ParseError::UnexpectedArgument(_))
+        ));
+        assert!(matches!(
+            parse(&["-Cx"]),
+            Err(ParseError::UnexpectedArgument(_))
+        ));
+        assert!(matches!(
+            parse(&["--", "--sys"]),
+            Err(ParseError::UnexpectedArgument(_))
+        ));
+    }
+
+    #[test]
+    fn double_dash_alone_is_a_no_op() {
+        assert_eq!(parse(&["--"]), Ok(ParseOutcome::Run(Cli::default())));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_non_utf8_arguments() {
+        use std::os::unix::ffi::OsStringExt;
+
+        let argument = OsString::from_vec(vec![b'-', 0xff]);
+
+        assert_eq!(Cli::parse_from([argument]), Err(ParseError::InvalidUtf8));
+    }
+
+    #[test]
+    fn help_lists_every_option() {
+        for flag in [
+            "--sys",
+            "--cpu",
+            "--cores",
+            "--mem",
+            "--bat",
+            "--env",
+            "--detailed",
+            "--help",
+            "--version",
+        ] {
+            assert!(HELP.contains(flag), "help is missing {flag}");
+        }
     }
 }

@@ -28,7 +28,3 @@ cargo install --path crates/gui       # gui
 # enable tmux output for the CLI
 cargo install --path crates/cli --features tmux
 ```
-
-> [!IMPORTANT]
-> Currently depends on `clap`
-

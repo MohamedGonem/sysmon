@@ -5,10 +5,32 @@ mod mem;
 mod sys;
 mod utils;
 
-use cli::Cli;
+use std::process::ExitCode;
 
-fn main() {
-    let cli = Cli::parse_args();
+use cli::{Cli, ParseOutcome};
+
+fn main() -> ExitCode {
+    match Cli::parse_args() {
+        Ok(ParseOutcome::Run(cli)) => {
+            run(cli);
+            ExitCode::SUCCESS
+        }
+        Ok(ParseOutcome::Help) => {
+            print!("{}", cli::HELP);
+            ExitCode::SUCCESS
+        }
+        Ok(ParseOutcome::Version) => {
+            println!("SysMon {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("error: {error}\n\nFor more information, try '--help'.");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn run(cli: Cli) {
     let tmux = cli.env.is_tmux();
 
     if cli.sys {
